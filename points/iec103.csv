@@ -1,0 +1,124 @@
+# IEC 60870-5-103 继电保护设备点表配置
+# 表头：Name, CA, FUN, INF, TypeID, Scale, Offset, DeadbandValue, DeadbandType
+#
+# 字段说明：
+#   Name: 测点名称
+#   CA: 公共地址（Common Address）
+#   FUN: 功能类型（Function Type）- IEC103 特有
+#   INF: 信息号（Information Number）- IEC103 特有
+#   TypeID: ASDU 类型标识（TI，可选）
+#   Scale: 缩放因子（可选，默认 1.0）
+#   Offset: 偏移量（可选，默认 0.0）
+#   DeadbandValue: 死区阈值（可选，默认 0）
+#   DeadbandType: 死区类型（absolute/percent，可选，默认 absolute）
+#
+# 功能类型（FUN）参考：
+#   1  - 时间同步
+#   2  - 总召唤
+#   3  - 读命令
+#   7  - 突发传输（SOE）
+#   8  - 通用分类数据
+#   9  - 控制命令
+#   10 - 参数设置
+#
+# 类型标识（TI）参考：
+#   1  - 带时标的消息
+#   2  - 带相对时间的时标消息
+#   9  - 带时标的测量值（短浮点数）
+#   13 - 单点信息带时标
+#   14 - 双点信息带时标
+#   19 - 通用分类数据
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 保护动作信号（SOE）
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 过流保护动作
+over_current_trip,1,7,1,13,1,0,0,absolute
+over_current_start,1,7,2,13,1,0,0,absolute
+
+# 零序保护动作
+zero_seq_trip,1,7,10,13,1,0,0,absolute
+zero_seq_start,1,7,11,13,1,0,0,absolute
+
+# 距离保护动作
+distance_trip_zone1,1,7,20,13,1,0,0,absolute
+distance_trip_zone2,1,7,21,13,1,0,0,absolute
+distance_trip_zone3,1,7,22,13,1,0,0,absolute
+
+# 差动保护动作
+diff_trip,1,7,30,13,1,0,0,absolute
+diff_start,1,7,31,13,1,0,0,absolute
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 保护告警信号
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 装置告警
+device_alarm,1,7,100,13,1,0,0,absolute
+device_fault,1,7,101,13,1,0,0,absolute
+
+# 通道告警
+channel_alarm,1,7,110,13,1,0,0,absolute
+channel_fault,1,7,111,13,1,0,0,absolute
+
+# PT/CT 告警
+pt_break,1,7,120,13,1,0,0,absolute
+ct_break,1,7,121,13,1,0,0,absolute
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 开关量输入（双点信息）
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 断路器位置
+breaker_pos_a,1,7,200,14,1,0,0,absolute
+breaker_pos_b,1,7,201,14,1,0,0,absolute
+breaker_pos_c,1,7,202,14,1,0,0,absolute
+
+# 隔离开关位置
+disconnector_pos_1,1,7,210,14,1,0,0,absolute
+disconnector_pos_2,1,7,211,14,1,0,0,absolute
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 模拟量测量值（带时标）
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 电流测量
+current_a,1,7,300,9,0.001,0,0.1,percent
+current_b,1,7,301,9,0.001,0,0.1,percent
+current_c,1,7,302,9,0.001,0,0.1,percent
+current_n,1,7,303,9,0.001,0,0.1,percent
+
+# 电压测量
+voltage_a,1,7,310,9,0.01,0,0.1,percent
+voltage_b,1,7,311,9,0.01,0,0.1,percent
+voltage_c,1,7,312,9,0.01,0,0.1,percent
+voltage_ab,1,7,313,9,0.01,0,0.1,percent
+voltage_bc,1,7,314,9,0.01,0,0.1,percent
+voltage_ca,1,7,315,9,0.01,0,0.1,percent
+
+# 功率测量
+active_power,1,7,320,9,0.001,0,0.1,percent
+reactive_power,1,7,321,9,0.001,0,0.1,percent
+apparent_power,1,7,322,9,0.001,0,0.1,percent
+
+# 频率测量
+frequency,1,7,330,9,0.001,50,0.1,percent
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 保护定值（通用分类数据）
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 过流定值
+over_current_pickup,1,8,400,19,0.01,0,0,absolute
+over_current_time,1,8,401,19,0.01,0,0,absolute
+
+# 零序定值
+zero_seq_pickup,1,8,410,19,0.01,0,0,absolute
+zero_seq_time,1,8,411,19,0.01,0,0,absolute
+
+# 距离定值
+distance_zone1_reach,1,8,420,19,0.01,0,0,absolute
+distance_zone1_time,1,8,421,19,0.01,0,0,absolute
+distance_zone2_reach,1,8,422,19,0.01,0,0,absolute
+distance_zone2_time,1,8,423,19,0.01,0,0,absolute

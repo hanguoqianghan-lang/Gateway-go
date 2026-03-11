@@ -223,28 +223,17 @@ func initExporters(cfg *config.AppConfig, logger *zap.Logger) []exporter.Exporte
 		logger.Info("MQTT导出器初始化完成", zap.String("broker", mqttCfg.Broker))
 	}
 
-	// Kafka导出器
+		// Kafka导出器
 	if cfg.Exporters.Kafka != nil && cfg.Exporters.Kafka.Enabled {
-		kafkaCfg := exporter.KafkaConfig{
-			Brokers:      cfg.Exporters.Kafka.Brokers,
-			Topic:        cfg.Exporters.Kafka.Topic,
-			Async:        cfg.Exporters.Kafka.Async,
-			Timeout:      cfg.Exporters.Kafka.Timeout,
-			BatchSize:    cfg.Exporters.Kafka.BatchSize,
-			BatchTimeout: cfg.Exporters.Kafka.BatchTimeout,
-			RequiredAcks: cfg.Exporters.Kafka.Acks,
-			Compression:  cfg.Exporters.Kafka.Compression,
+		exp, err := exporter.NewKafkaExporter(logger, *cfg.Exporters.Kafka)
+		if err != nil {
+			logger.Error("Kafka导出器初始化失败", zap.Error(err))
+		} else {
+			exporters = append(exporters, exp)
+			logger.Info("Kafka导出器初始化完成",
+				zap.Strings("brokers", cfg.Exporters.Kafka.Brokers),
+				zap.String("topic", cfg.Exporters.Kafka.Topic))
 		}
-
-		exp := exporter.NewKafkaExporter(logger, kafkaCfg, exporter.BatchConfig{
-			MaxSize:    cfg.Exporters.Batch.MaxSize,
-			MaxLatency: cfg.Exporters.Batch.MaxLatency,
-		})
-
-		exporters = append(exporters, exp)
-		logger.Info("Kafka导出器初始化完成",
-			zap.Strings("brokers", kafkaCfg.Brokers),
-			zap.String("topic", kafkaCfg.Topic))
 	}
 
 	return exporters

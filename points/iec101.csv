@@ -1,0 +1,45 @@
+# IEC 60870-5-101 点表配置
+# 格式：Name,CA,IOA,TypeID,Scale,Offset,Interval,DeadbandValue,DeadbandType
+#
+# 字段说明：
+#   Name: 测点名称
+#   CA: 公共地址（Common Address）
+#   IOA: 信息对象地址（Information Object Address）
+#   TypeID: ASDU 类型标识
+#   Scale: 缩放因子（可选，默认 1.0）
+#   Offset: 偏移量（可选，默认 0.0）
+#   Interval: 采集间隔（毫秒，可选，默认 0）
+#   DeadbandValue: 死区阈值（可选，默认 0）
+#   DeadbandType: 死区类型（absolute/percent，可选，默认 absolute）
+#
+# 类型标识参考：
+#   1  - M_SP_NA_1  单点信息
+#   3  - M_DP_NA_1  双点信息
+#   5  - M_ST_NA_1  步位置信息
+#   7  - M_BO_NA_1  32位比特串
+#   9  - M_ME_NA_1  测量值归一化值
+#   11 - M_ME_NB_1  测量值标度化值
+#   13 - M_ME_NC_1  测量值短浮点数
+#   15 - M_IT_NA_1  累积量
+
+# 单点遥信
+breaker_status,1,1,1,1,0,0,0,absolute
+switch_status,1,2,1,1,0,0,0,absolute
+
+# 双点遥信
+breaker_position,1,3,3,1,0,0,0,absolute
+
+# 测量值（短浮点数）
+voltage_a,1,10,13,1,0,0,0.1,absolute
+voltage_b,1,11,13,1,0,0,0.1,absolute
+voltage_c,1,12,13,1,0,0,0.1,absolute
+current_a,1,13,13,1,0,0,0.01,absolute
+current_b,1,14,13,1,0,0,0.01,absolute
+current_c,1,15,13,1,0,0,0.01,absolute
+
+# 测量值（标度化值）
+active_power,1,20,11,0.1,0,0,1,absolute
+reactive_power,1,21,11,0.1,0,0,1,absolute
+
+# 带缩放的温度测量
+temperature,1,30,13,0.1,0,0,0.5,absolute

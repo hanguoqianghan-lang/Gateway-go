@@ -108,6 +108,35 @@ exporters:
   #   # 确认级别：0=不确认, 1=leader确认, -1=all确认
   #   acks: 1
 
+  # IEC104 Server 导出器配置（北向，作为主站）
+  iec104_server:
+    # 是否启用 IEC104 Server
+    enabled: true
+    # 监听地址（SCADA 系统连接此地址）
+    listen_addr: ":2405"
+    # 最大连接数
+    max_connections: 5
+    # APDU 最大长度（范围：1-253，IEC104 规范最大值为 253）
+    max_apdu_length: 253
+    # 公共地址（ASDU.CommonAddr）
+    common_address: 1
+    # 本地 COT
+    cot_local: 2
+    # 远端 COT
+    cot_remote: 1
+    # 连接超时
+    connect_timeout: 10s
+    # 空闲超时
+    idle_timeout: 30s
+    # 测试帧发送间隔
+    test_interval: 15s
+    # 点表映射文件路径
+    point_file: "./points/iec104_server.csv"
+    # 发送缓冲区大小
+    send_buffer_size: 1024
+    # 数据队列大小
+    queue_size: 8192
+
   # 批量发送配置（所有导出器共用）
   batch:
     # 批量发送最大条数

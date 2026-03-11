@@ -5,97 +5,146 @@ package exporter
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/gateway/gateway/config"
 	"github.com/gateway/gateway/internal/model"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl"
+	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/segmentio/kafka-go/sasl/scram"
 	"go.uber.org/zap"
 )
 
-// KafkaConfig Kafka 连接配置
-type KafkaConfig struct {
-	Brokers       []string      // 例如 ["192.168.1.100:9092"]
-	Topic         string        // 目标 topic
-	Async         bool          // true=异步写入（高吞吐）/ false=同步（低丢失）
-	Timeout       time.Duration // 写入超时
-	BatchSize     int           // 批量大小
-	BatchTimeout  time.Duration // 批量超时
-	RequiredAcks  int           // 确认级别：0=不确认，1=leader确认，-1=all确认
-	Compression   string        // 压缩类型：none, gzip, snappy, lz4, zstd
-}
-
-// DefaultKafkaConfig 默认配置
-var DefaultKafkaConfig = KafkaConfig{
-	Brokers:       []string{"127.0.0.1:9092"},
-	Topic:         "iot.gateway.data",
-	Async:         true,
-	Timeout:       5 * time.Second,
-	BatchSize:     100,
-	BatchTimeout:  10 * time.Millisecond,
-	RequiredAcks:  1,
-	Compression:   "none",
-}
-
-// KafkaMessage Kafka 消息体
-type KafkaMessage struct {
-	Timestamp int64       `json:"ts"`
-	Points    []mqttPoint `json:"points"` // 复用 mqttPoint 结构
-}
+// 使用 jsoniter 提升序列化性能
+var fastJson = jsoniter.ConfigFastest
 
 // KafkaExporter Kafka 北向导出器
 type KafkaExporter struct {
-	cfg    KafkaConfig
-	batch  BatchConfig
+	cfg    config.KafkaExporterConfig
 	logger *zap.Logger
 	writer *kafka.Writer
 }
 
 // NewKafkaExporter 创建 Kafka 导出器
-func NewKafkaExporter(logger *zap.Logger, cfg KafkaConfig, batchCfg BatchConfig) *KafkaExporter {
+func NewKafkaExporter(logger *zap.Logger, cfg config.KafkaExporterConfig) (*KafkaExporter, error) {
 	// 设置默认值
 	if cfg.BatchSize == 0 {
-		cfg.BatchSize = DefaultKafkaConfig.BatchSize
+		cfg.BatchSize = 100
 	}
 	if cfg.BatchTimeout == 0 {
-		cfg.BatchTimeout = DefaultKafkaConfig.BatchTimeout
+		cfg.BatchTimeout = 10 * time.Millisecond
 	}
 	if cfg.Timeout == 0 {
-		cfg.Timeout = DefaultKafkaConfig.Timeout
+		cfg.Timeout = 5 * time.Second
 	}
-	if cfg.RequiredAcks == 0 {
-		cfg.RequiredAcks = DefaultKafkaConfig.RequiredAcks
-	}
-	if cfg.Compression == "" {
-		cfg.Compression = DefaultKafkaConfig.Compression
+	if cfg.Acks == 0 {
+		cfg.Acks = 1
 	}
 
-	// 创建 Kafka Writer
+	// 1. 构建 Transport 以支持 SASL/TLS
+	transport := &kafka.Transport{}
+
+	// 配置 TLS
+	if cfg.TLS != nil && cfg.TLS.Enabled {
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: cfg.TLS.SkipVerify,
+		}
+
+		// 加载客户端证书
+		if cfg.TLS.CertFile != "" && cfg.TLS.KeyFile != "" {
+			cert, err := tls.LoadX509KeyPair(cfg.TLS.CertFile, cfg.TLS.KeyFile)
+			if err != nil {
+				return nil, fmt.Errorf("加载 Kafka TLS 证书失败: %w", err)
+			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
+
+		// 加载 CA 证书
+		if cfg.TLS.CAFile != "" {
+			caCert, err := os.ReadFile(cfg.TLS.CAFile)
+			if err != nil {
+				return nil, fmt.Errorf("加载 Kafka CA 证书失败: %w", err)
+			}
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+			tlsConfig.RootCAs = caCertPool
+		}
+
+		transport.TLS = tlsConfig
+	}
+
+	// 配置 SASL
+	if cfg.SASL != nil && cfg.SASL.Enabled {
+		var mechanism sasl.Mechanism
+		var err error
+
+		switch strings.ToUpper(cfg.SASL.Mechanism) {
+		case "PLAIN":
+			mechanism = plain.Mechanism{
+				Username: cfg.SASL.User,
+				Password: cfg.SASL.Password,
+			}
+		case "SCRAM-SHA-256":
+			mechanism, err = scram.Mechanism(scram.SHA256, cfg.SASL.User, cfg.SASL.Password)
+		case "SCRAM-SHA-512":
+			mechanism, err = scram.Mechanism(scram.SHA512, cfg.SASL.User, cfg.SASL.Password)
+		default:
+			return nil, fmt.Errorf("不支持的 Kafka SASL 机制: %s", cfg.SASL.Mechanism)
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("初始化 Kafka SASL 失败: %w", err)
+		}
+		transport.SASL = mechanism
+	}
+
+	// 2. 创建 Kafka Writer
 	writer := &kafka.Writer{
 		Addr:         kafka.TCP(cfg.Brokers...),
 		Topic:        cfg.Topic,
-		Balancer:     &kafka.LeastBytes{}, // 负载均衡策略
+		Balancer:     &kafka.Hash{}, // 基于 Key 进行哈希路由，确保同个测点数据有序进入相同 Partition
 		Async:        cfg.Async,
 		BatchSize:    cfg.BatchSize,
 		BatchTimeout: cfg.BatchTimeout,
 		WriteTimeout: cfg.Timeout,
-		RequiredAcks: kafka.RequiredAcks(cfg.RequiredAcks),
+		RequiredAcks: kafka.RequiredAcks(cfg.Acks),
 		Compression:  getCompression(cfg.Compression),
+		Transport:    transport,
+		Completion: func(messages []kafka.Message, err error) {
+			// 3. Async 模式下的 Error 捕获回调
+			if err != nil {
+				logger.Error("Kafka 异步写入失败",
+					zap.Error(err),
+					zap.Int("failed_messages", len(messages)),
+					zap.String("topic", cfg.Topic))
+				// TODO: 此处可对接 StorageConfig 实现明确失败消息的 sqlite 暂存补发机制
+			}
+            // 写入成功时的 debug 返回
+			if logger.Core().Enabled(zap.DebugLevel) {
+				logger.Debug("Kafka 异步写入批次完成", zap.Int("messages", len(messages)))
+			}
+		},
 	}
 
 	logger.Info("Kafka Writer 初始化成功",
 		zap.Strings("brokers", cfg.Brokers),
 		zap.String("topic", cfg.Topic),
-		zap.Bool("async", cfg.Async))
+		zap.Bool("async", cfg.Async),
+		zap.Bool("tls_enabled", cfg.TLS != nil && cfg.TLS.Enabled),
+		zap.Bool("sasl_enabled", cfg.SASL != nil && cfg.SASL.Enabled))
 
 	return &KafkaExporter{
 		cfg:    cfg,
-		batch:  batchCfg,
 		logger: logger,
 		writer: writer,
-	}
+	}, nil
 }
 
 // getCompression 获取压缩类型
@@ -117,61 +166,60 @@ func getCompression(compression string) kafka.Compression {
 // Name 实现 Exporter 接口
 func (e *KafkaExporter) Name() string { return "kafka" }
 
-// Run 实现 Exporter 接口
+// Run 实现 Exporter 接口，直接消费 sub，不再依赖冗余的外层 Batcher
 func (e *KafkaExporter) Run(ctx context.Context, sub <-chan *model.PointData) {
 	e.logger.Info("Kafka 导出器已启动",
 		zap.Strings("brokers", e.cfg.Brokers),
 		zap.String("topic", e.cfg.Topic))
-	batcher := NewBatcher(e.batch, e.send)
-	batcher.Run(ctx, sub)
+
+	for {
+		select {
+		case <-ctx.Done():
+			e.logger.Info("Kafka 导出器收到退出信号")
+			return
+		case p, ok := <-sub:
+			if !ok {
+				return
+			}
+			e.sendPoint(ctx, p)
+		}
+	}
 }
 
-// send 由 Batcher 回调，将一批测点写入 Kafka
-func (e *KafkaExporter) send(batch []*model.PointData) error {
-	points := make([]mqttPoint, 0, len(batch))
-	for _, p := range batch {
-		points = append(points, mqttPoint{
-			ID:        p.ID,
-			Value:     p.Value,
-			Timestamp: p.Timestamp,
-			Quality:   p.Quality,
-		})
+// sendPoint 将单个点位打包并发送给 Kafka Writer（复用底层微批机制）
+func (e *KafkaExporter) sendPoint(ctx context.Context, p *model.PointData) {
+	// 构建单条输出点位
+	point := mqttPoint{
+		ID:        p.ID,
+		Value:     p.Value,
+		Timestamp: p.Timestamp,
+		Quality:   p.Quality,
 	}
 
-	payload, err := json.Marshal(KafkaMessage{
-		Timestamp: time.Now().UnixMilli(),
-		Points:    points,
-	})
+	// 使用高性能 JIT JSON 库代替 encoding/json
+	payload, err := fastJson.Marshal(point)
+
 	if err != nil {
-		return fmt.Errorf("Kafka JSON 序列化失败: %w", err)
+		e.logger.Error("Kafka JSON 序列化失败", zap.Error(err), zap.String("point_id", point.ID))
+        model.PutPoint(p) // 报错也要归还点位对象
+		return
 	}
+    model.PutPoint(p) // 序列化完毕后尽早归还内存池，防止对象逃逸累计
 
-	// 创建 Kafka 消息
-	// 使用时间戳作为 Key，保证消息有序性
+	// 构造 Message：将点位 ID 作为 Key，严格保障同一测点路由至同一个 Partition
 	msg := kafka.Message{
-		Key:   []byte(time.Now().Format(time.RFC3339Nano)),
+		Key:   []byte(point.ID),
 		Value: payload,
 		Time:  time.Now(),
 	}
 
-	// 写入 Kafka
-	writeCtx, cancel := context.WithTimeout(context.Background(), e.cfg.Timeout)
-	defer cancel()
-
-	if err := e.writer.WriteMessages(writeCtx, msg); err != nil {
-		e.logger.Error("Kafka 写入失败",
+	// 在 Async 模式下，WriteMessages 基本上是非阻塞直接入队的，所以用入参的 ctx 即可
+	err = e.writer.WriteMessages(ctx, msg)
+	if err != nil {
+		e.logger.Error("Kafka 提交消息到发送队列失败",
 			zap.Error(err),
-			zap.Int("points", len(batch)),
-			zap.Int("bytes", len(payload)))
-		return fmt.Errorf("Kafka WriteMessages 失败: %w", err)
+			zap.String("point_id", point.ID))
 	}
-
-	e.logger.Info("Kafka 写入成功",
-		zap.String("topic", e.cfg.Topic),
-		zap.Int("points", len(batch)),
-		zap.Int("bytes", len(payload)))
-
-	return nil
 }
 
 // Close 实现 Exporter 接口

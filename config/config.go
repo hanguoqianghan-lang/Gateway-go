@@ -50,7 +50,7 @@ type GatewayConfig struct {
 type DriverConfig struct {
 	// ID 驱动实例唯一标识
 	ID string `yaml:"id" json:"id"`
-	// Type 驱动类型：modbus_tcp, iec104
+	// Type 驱动类型：modbus_tcp, iec104, iec101, iec102, iec103
 	Type string `yaml:"type" json:"type"`
 	// Enabled 是否启用该驱动
 	Enabled bool `yaml:"enabled" json:"enabled" default:"true"`
@@ -65,6 +65,15 @@ type DriverConfig struct {
 
 	// IEC104 配置（仅当 Type=iec104 时有效）
 	IEC104 *IEC104DriverConfig `yaml:"iec104,omitempty" json:"iec104,omitempty"`
+
+	// IEC101 配置（仅当 Type=iec101 时有效）
+	IEC101 *IEC101DriverConfig `yaml:"iec101,omitempty" json:"iec101,omitempty"`
+
+	// IEC102 配置（仅当 Type=iec102 时有效）
+	IEC102 *IEC102DriverConfig `yaml:"iec102,omitempty" json:"iec102,omitempty"`
+
+	// IEC103 配置（仅当 Type=iec103 时有效）
+	IEC103 *IEC103DriverConfig `yaml:"iec103,omitempty" json:"iec103,omitempty"`
 }
 
 // ModbusDriverConfig Modbus TCP 驱动配置
@@ -107,6 +116,102 @@ type IEC104DriverConfig struct {
 	EnableSystemMetrics bool `yaml:"enable_system_metrics" json:"enable_system_metrics" default:"false"`
 }
 
+// IEC101DriverConfig IEC101 驱动配置
+type IEC101DriverConfig struct {
+	// SerialPort 串口设备路径
+	SerialPort string `yaml:"serial_port" json:"serial_port"`
+	// BaudRate 波特率
+	BaudRate int `yaml:"baud_rate" json:"baud_rate" default:"9600"`
+	// DataBits 数据位
+	DataBits int `yaml:"data_bits" json:"data_bits" default:"8"`
+	// StopBits 停止位
+	StopBits int `yaml:"stop_bits" json:"stop_bits" default:"1"`
+	// Parity 校验位：none, even, odd
+	Parity string `yaml:"parity" json:"parity" default:"even"`
+	// Timeout 响应超时
+	Timeout time.Duration `yaml:"timeout" json:"timeout" default:"1s"`
+	// CommonAddress 公共地址
+	CommonAddress int `yaml:"common_address" json:"common_address" default:"1"`
+	// LinkAddress 链路地址
+	LinkAddress int `yaml:"link_address" json:"link_address" default:"1"`
+	// BalancedMode 传输模式：true=平衡模式，false=非平衡模式
+	BalancedMode bool `yaml:"balanced_mode" json:"balanced_mode" default:"false"`
+	// GIInterval 总召唤间隔（非平衡模式）
+	GIInterval time.Duration `yaml:"gi_interval" json:"gi_interval" default:"15m"`
+	// PollInterval 轮询间隔
+	PollInterval time.Duration `yaml:"poll_interval" json:"poll_interval" default:"1s"`
+	// MaxRetry 最大重试次数
+	MaxRetry int `yaml:"max_retry" json:"max_retry" default:"3"`
+	// RetryInterval 重试间隔
+	RetryInterval time.Duration `yaml:"retry_interval" json:"retry_interval" default:"1s"`
+}
+
+// IEC102DriverConfig IEC102 驱动配置
+type IEC102DriverConfig struct {
+	// SerialPort 串口设备路径
+	SerialPort string `yaml:"serial_port" json:"serial_port"`
+	// BaudRate 波特率
+	BaudRate int `yaml:"baud_rate" json:"baud_rate" default:"9600"`
+	// DataBits 数据位
+	DataBits int `yaml:"data_bits" json:"data_bits" default:"8"`
+	// StopBits 停止位
+	StopBits int `yaml:"stop_bits" json:"stop_bits" default:"1"`
+	// Parity 校验位：none, even, odd
+	Parity string `yaml:"parity" json:"parity" default:"even"`
+	// Timeout 响应超时
+	Timeout time.Duration `yaml:"timeout" json:"timeout" default:"1s"`
+	// CommonAddress 公共地址
+	CommonAddress int `yaml:"common_address" json:"common_address" default:"1"`
+	// LinkAddress 链路地址
+	LinkAddress int `yaml:"link_address" json:"link_address" default:"1"`
+	// BalancedMode 传输模式：true=平衡模式，false=非平衡模式
+	BalancedMode bool `yaml:"balanced_mode" json:"balanced_mode" default:"false"`
+	// BackgroundScanInterval 背景扫描间隔
+	BackgroundScanInterval time.Duration `yaml:"background_scan_interval" json:"background_scan_interval" default:"15m"`
+	// PeriodicReadInterval 周期读取间隔
+	PeriodicReadInterval time.Duration `yaml:"periodic_read_interval" json:"periodic_read_interval" default:"5m"`
+	// PollInterval 轮询间隔
+	PollInterval time.Duration `yaml:"poll_interval" json:"poll_interval" default:"1s"`
+	// MaxRetry 最大重试次数
+	MaxRetry int `yaml:"max_retry" json:"max_retry" default:"3"`
+	// RetryInterval 重试间隔
+	RetryInterval time.Duration `yaml:"retry_interval" json:"retry_interval" default:"1s"`
+}
+
+// IEC103DriverConfig IEC103 驱动配置
+type IEC103DriverConfig struct {
+	// SerialPort 串口设备路径
+	SerialPort string `yaml:"serial_port" json:"serial_port"`
+	// BaudRate 波特率
+	BaudRate int `yaml:"baud_rate" json:"baud_rate" default:"9600"`
+	// DataBits 数据位
+	DataBits int `yaml:"data_bits" json:"data_bits" default:"8"`
+	// StopBits 停止位
+	StopBits int `yaml:"stop_bits" json:"stop_bits" default:"1"`
+	// Parity 校验位：none, even, odd（IEC103 标准使用 even）
+	Parity string `yaml:"parity" json:"parity" default:"even"`
+	// Timeout 响应超时
+	Timeout time.Duration `yaml:"timeout" json:"timeout" default:"1s"`
+	// CommonAddress 公共地址
+	CommonAddress int `yaml:"common_address" json:"common_address" default:"1"`
+	// LinkAddress 链路地址
+	LinkAddress int `yaml:"link_address" json:"link_address" default:"1"`
+	// BalancedMode 传输模式：true=平衡模式，false=非平衡模式
+	BalancedMode bool `yaml:"balanced_mode" json:"balanced_mode" default:"false"`
+	// GIInterval 总召唤间隔（非平衡模式）
+	GIInterval time.Duration `yaml:"gi_interval" json:"gi_interval" default:"15m"`
+	// PollInterval 轮询间隔
+	PollInterval time.Duration `yaml:"poll_interval" json:"poll_interval" default:"1s"`
+	// MaxRetry 最大重试次数
+	MaxRetry int `yaml:"max_retry" json:"max_retry" default:"3"`
+	// RetryInterval 重试间隔
+	RetryInterval time.Duration `yaml:"retry_interval" json:"retry_interval" default:"1s"`
+	// SOEQueueSize SOE 事件队列大小（应对故障爆发）
+	SOEQueueSize int `yaml:"soe_queue_size" json:"soe_queue_size" default:"10000"`
+	// SOEWorkerCount SOE 处理 Worker 数量
+	SOEWorkerCount int `yaml:"soe_worker_count" json:"soe_worker_count" default:"10"`
+}
+
 // ExporterConfig 北向导出器配置
 type ExporterConfig struct {
 	// MQTT MQTT 导出器配置
@@ -114,6 +219,9 @@ type ExporterConfig struct {
 
 	// Kafka Kafka 导出器配置
 	Kafka *KafkaExporterConfig `yaml:"kafka,omitempty" json:"kafka,omitempty"`
+
+	// IEC104 IEC104 北向从站配置
+	IEC104 *IEC104ExporterConfig `yaml:"iec104,omitempty" json:"iec104,omitempty"`
 
 	// BatchConfig 批量发送配置
 	Batch BatchConfig `yaml:"batch" json:"batch"`
@@ -165,6 +273,55 @@ type KafkaExporterConfig struct {
 	FlushTimeout time.Duration `yaml:"flush_timeout" json:"flush_timeout" default:"1s"`
 	// Acks 确认级别：0, 1, -1
 	Acks int `yaml:"acks" json:"acks" default:"1"`
+
+	// SASL 认证配置（可选）
+	SASL *SASLConfig `yaml:"sasl,omitempty" json:"sasl,omitempty"`
+	// TLS 加密配置（可选）
+	TLS *TLSConfig `yaml:"tls,omitempty" json:"tls,omitempty"`
+}
+
+// SASLConfig Kafka SASL 认证配置
+type SASLConfig struct {
+	// Enabled 是否启用 SASL
+	Enabled bool `yaml:"enabled" json:"enabled" default:"false"`
+	// Mechanism 认证机制：PLAIN, SCRAM-SHA-256, SCRAM-SHA-512
+	Mechanism string `yaml:"mechanism" json:"mechanism" default:"PLAIN"`
+	// User 用户名
+	User string `yaml:"user" json:"user"`
+	// Password 密码
+	Password string `yaml:"password" json:"password"`
+}
+
+// TLSConfig Kafka TLS 加密配置
+type TLSConfig struct {
+	// Enabled 是否启用 TLS
+	Enabled bool `yaml:"enabled" json:"enabled" default:"false"`
+	// SkipVerify 是否跳过证书校验（不建议在生产环境开启）
+	SkipVerify bool `yaml:"skip_verify" json:"skip_verify" default:"false"`
+	// CertFile 客户端证书文件路径
+	CertFile string `yaml:"cert_file,omitempty" json:"cert_file,omitempty"`
+	// KeyFile 客户端私钥文件路径
+	KeyFile string `yaml:"key_file,omitempty" json:"key_file,omitempty"`
+	// CAFile CA 证书文件路径
+	CAFile string `yaml:"ca_file,omitempty" json:"ca_file,omitempty"`
+}
+
+// IEC104ExporterConfig IEC104 北向服务端配置
+type IEC104ExporterConfig struct {
+	// Enabled 是否启用 IEC104 导出
+	Enabled bool `yaml:"enabled" json:"enabled" default:"false"`
+	// BindAddr 监听地址（如 :2404）
+	BindAddr string `yaml:"bind_addr" json:"bind_addr" default:":2404"`
+	// CommonAddress 公共地址 (ASDU地址)
+	CommonAddress uint16 `yaml:"common_address" json:"common_address" default:"1"`
+	// MaxConnections 最大允许的客户端连接数
+	MaxConnections int `yaml:"max_connections" json:"max_connections" default:"5"`
+	// PointMapFile 点表映射文件（定义内部测点ID到IOA地址的映射）
+	PointMapFile string `yaml:"point_map_file" json:"point_map_file"`
+	// IdleTimeout 空闲连接超时
+	IdleTimeout time.Duration `yaml:"idle_timeout" json:"idle_timeout" default:"60s"`
+	// InterrogationAddr 总召唤地址 (通常为 0xFF)
+	InterrogationAddr uint8 `yaml:"interrogation_addr" json:"interrogation_addr" default:"20"`
 }
 
 // BatchConfig 批量发送配置

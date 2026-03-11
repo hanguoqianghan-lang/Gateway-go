@@ -1,0 +1,30 @@
+# IEC104 Server 点表映射配置
+# 格式：point_id,ioa,type_id,cot,scale,offset
+# 
+# 字段说明：
+#   point_id: 南向采集的点 ID（格式：<驱动ID>/<点名>）
+#   ioa:      IEC104 信息对象地址
+#   type_id:  IEC104 类型标识（M_SP_NA_1=单点遥信, M_ME_NC_1=浮点遥测等）
+#   cot:      传输原因（可选，默认使用全局配置）
+#   scale:    缩放因子（可选，默认 1.0）
+#   offset:   偏移量（可选，默认 0.0）
+#
+# 类型标识参考：
+#   M_SP_NA_1  - 单点遥信
+#   M_DP_NA_1  - 双点遥信
+#   M_ME_NA_1  - 遥测值（归一化值）
+#   M_ME_NB_1  - 遥测值（标度化值）
+#   M_ME_NC_1  - 遥测值（浮点值）
+#   M_ST_NA_1  - 步位置信息
+#   M_BO_NA_1  - 比特串
+
+# Modbus 遥测点映射（浮点值）
+modbus-sim-01/reg0,1,M_ME_NC_1,3,1,0
+modbus-sim-01/reg1,2,M_ME_NC_1,3,1,0
+
+# IEC104 Client 遥信点映射（单点）
+iec104-test-01/breaker_status,16385,M_SP_NA_1,3,1,0
+iec104-test-01/status_bus12,16386,M_SP_NA_1,3,1,0
+
+# 示例：带缩放和偏移的遥测点
+# modbus-sim-01/temp,10,M_ME_NC_1,3,0.1,0
