@@ -1,0 +1,6 @@
+Name,Address,Type,DataType,ByteOrder,Scale,Offset,Interval,Description
+reg0,100,holding,float32,big,1,0,1000,寄存�?
+reg1,102,holding,float32,big,1,0,1000,寄存�?
+reg2,104,holding,float32,big,1,0,1000,寄存�?
+reg3,106,holding,float32,big,1,0,1000,寄存�?
+reg4,108,holding,float32,big,1,0,1000,寄存�?

@@ -1,0 +1,9 @@
+Name,Address,Type,DataType,ByteOrder,BitPos,Scale,Offset,Interval,Description
+float_abcd,100,holding,float32,ABCD,-1,1.0,0,1000,标准大端ABCD
+float_cdab,102,holding,float32,CDAB,-1,1.0,0,1000,字交换CDAB
+float_badc,104,holding,float32,BADC,-1,1.0,0,1000,字节交换BADC
+float_dcba,106,holding,float32,DCBA,-1,1.0,0,1000,标准小端DCBA
+status_reg,108,holding,uint16,big,-1,1.0,0,1000,状态寄存器
+bit0,108,holding,uint16,big,0,1.0,0,1000,提取第0位
+bit1,108,holding,uint16,big,1,1.0,0,1000,提取第1位
+bit2,108,holding,uint16,big,2,1.0,0,1000,提取第2位

@@ -1,0 +1,147 @@
+# CGN 工业物联网网关配置文件
+# 支持的配置文件格式：YAML, JSON
+
+gateway:
+  # 网关名称
+  name: "CGN-Gateway"
+  # 网关版本
+  version: "1.0.0"
+  # 日志文件路径（可选，未配置则输出到控制台）
+  log_path: "./logs/gateway.log"
+  # 日志级别：debug, info, warn, error
+  log_level: "error"
+  # 日志文件最大大小（MB）
+  log_max_size: 10
+  # 日志文件最大备份数
+  log_max_backups: 3
+  # 日志文件最大保留天数
+  log_max_age: 28
+  # 是否压缩日志文件
+  log_compress: true
+  # HTTP metrics 端口
+  metrics_addr: ":8081"
+
+# 南向驱动配置
+drivers:
+  # Modbus TCP 驱动示例
+  - id: "modbus-sim-01"
+    type: "modbus_tcp"
+    enabled: true
+    name: "sim-slave"
+    # 点表文件路径（CSV格式）
+    point_file: "./points/modbus.csv"
+
+    modbus:
+      # Modbus Slave IP 地址
+      host: "127.0.0.1"
+      # Modbus TCP 端口
+      port: 502
+      # Modbus 单元 ID（从站地址）
+      unit_id: 1
+      # 单次请求超时
+      timeout: 3s
+      # 指数退避最大间隔
+      max_retry_interval: 60s
+      # 默认采集轮询间隔（CSV中未指定Interval时使用）
+      poll_interval: 1s
+
+  # IEC104 驱动
+  - id: "iec104-test-01"
+    type: "iec104"
+    enabled: true
+    name: "iec104-test"
+    point_file: "./points/iec104.csv"
+
+    iec104:
+      host: "127.0.0.1"
+      port: 2404
+      common_address: 1
+      timeout: 10s
+      reconnect_interval: 5s
+      gi_interval: 15m
+      clock_sync_interval: 1h
+      gi_staggered_delay: 30s
+      enable_system_metrics: true
+
+# 北向导出器配置
+exporters:
+  # MQTT 导出器配置
+  mqtt:
+    # 是否启用 MQTT 导出
+    enabled: true
+    # MQTT broker 地址
+    broker: "tcp://127.0.0.1:1883"
+    # 客户端 ID
+    client_id: "cgn-gateway-pub"
+    # 发布主题前缀（完整主题 = topic_prefix/<driver_name>）
+    topic_prefix: "gateway/data"
+    # 服务质量等级：0, 1, 2
+    qos: 0
+    # 用户名（可选）
+    # username: ""
+    # 密码（可选）
+    # password: ""
+    # 连接超时
+    conn_timeout: 5s
+
+  # Kafka 导出器配置
+  # kafka:
+  #   # 是否启用 Kafka 导出
+  #   enabled: false
+  #   # Kafka broker 列表
+  #   brokers:
+  #     - "127.0.0.1:9092"
+  #   # 主题名称
+  #   topic: "gateway-data"
+  #   # 客户端 ID
+  #   client_id: "cng-gateway-producer"
+  #   # 压缩类型：none, gzip, snappy, lz4, zstd
+  #   compression: "none"
+  #   # 批量发送消息数
+  #   flush_messages: 100
+  #   # 批量发送超时
+  #   flush_timeout: 1s
+  #   # 确认级别：0, 1, all
+  #   acks: 1
+
+  # 批量发送配置（所有导出器共用）
+  batch:
+    # 批量发送最大条数
+    max_size: 500
+    # 批量发送最大延迟
+    max_latency: 200ms
+
+# 内部总线配置
+bus:
+  # 主通道缓冲区大小
+  buffer_size: 8192
+  # 死区阈值（0=禁用死区过滤）
+  deadband_threshold: 0
+
+# 离线缓存配置
+storage:
+  # 是否启用离线缓存
+  enabled: false
+  # 存储类型：memory, sqlite, leveldb
+  type: "memory"
+  # 存储文件路径（sqlite/leveldb）
+  path: "./data/gateway.db"
+  # 内存缓存最大大小（MB）
+  max_memory_size: 100
+  # 刷盘间隔（仅memory类型有效）
+  flush_interval: 30s
+  # 重试间隔（网络恢复后）
+  retry_interval: 10s
+
+# NTP时间同步配置
+ntp:
+  # 是否启用NTP时间同步
+  enabled: false
+  # NTP服务器地址
+  server: "pool.ntp.org"
+  # NTP服务器端口
+  port: 123
+  # 同步间隔
+  interval: 1h
+  # 超时时间
+  timeout: 5s

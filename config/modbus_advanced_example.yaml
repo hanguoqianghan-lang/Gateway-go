@@ -1,0 +1,25 @@
+# Modbus 驱动高级配置示例
+drivers:
+  - id: "modbus-plc-01"
+    type: "modbus_tcp"
+    enabled: true
+    name: "plc-main"
+    point_file: "./points/modbus_advanced.csv"
+
+    modbus:
+      host: "192.168.1.100"
+      port: 502
+      unit_id: 1
+      timeout: 3s
+      max_retry_interval: 60s
+      poll_interval: 1s
+
+      # 高级配置项
+      # 地址偏移量: 某些PLC的40001对应寄存器0,有些对应1
+      # 实际地址 = CSV地址 + address_offset
+      address_offset: 0
+
+      # 单次请求最大读取寄存器数
+      # 默认100,某些老旧PLC可能需要更小的值(如30)
+      # 超过此值的连续地址会被拆分为多个请求
+      max_registers_per_request: 100
