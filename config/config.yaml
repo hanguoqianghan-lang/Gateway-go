@@ -1,8 +1,8 @@
-# CGN 工业物联网网关配置文件
+# 工业物联网网关配置文件
 # 支持的配置文件格式：YAML, JSON
 
 gateway:
-  # 网关名称
+  # 网关名称:
   name: "CGN-Gateway"
   # 网关版本
   version: "1.0.0"
