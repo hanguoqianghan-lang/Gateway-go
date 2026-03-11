@@ -1,0 +1,17 @@
+# 忽略编译产物和二进制文件
+*.exe linguist-vendored
+*.dll linguist-vendored
+*.so linguist-vendored
+
+# 忽略配置/脚本文件（这些会被识别为其他语言）
+*.yaml linguist-vendored
+*.yml linguist-vendored
+*.json linguist-vendored
+Makefile linguist-vendored
+
+# 忽略编辑器配置和工具目录
+.vscode/** linguist-vendored
+.codeartsdoer/** linguist-vendored
+
+# 忽略CSV数据文件
+points/** linguist-vendored
