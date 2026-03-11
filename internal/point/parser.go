@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cgn/gateway/internal/driver/iec104"
-	"github.com/cgn/gateway/internal/driver/modbus"
+	"github.com/gateway/gateway/internal/driver/iec104"
+	"github.com/gateway/gateway/internal/driver/modbus"
 	"go.uber.org/zap"
 )
 

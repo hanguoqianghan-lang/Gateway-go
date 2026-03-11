@@ -1,9 +1,10 @@
-module github.com/cgn/gateway
+module github.com/gateway/gateway
 
 go 1.24.0
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.0
+	github.com/segmentio/kafka-go v0.4.50
 	github.com/simonvetter/modbus v1.6.4
 	github.com/wendy512/go-iecp5 v1.2.5
 	github.com/wendy512/iec104 v1.0.4
@@ -14,6 +15,8 @@ require (
 require (
 	github.com/goburrow/serial v0.1.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/klauspost/compress v1.15.9 // indirect
+	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

@@ -18,8 +18,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cgn/gateway/internal/broker"
-	"github.com/cgn/gateway/internal/model"
+	"github.com/gateway/gateway/internal/broker"
+	"github.com/gateway/gateway/internal/model"
 	"github.com/wendy512/go-iecp5/asdu"
 	"github.com/wendy512/go-iecp5/cs104"
 	"github.com/wendy512/iec104/client"

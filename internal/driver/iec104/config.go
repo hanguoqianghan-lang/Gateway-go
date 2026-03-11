@@ -4,7 +4,7 @@ package iec104
 import (
 	"time"
 
-	"github.com/cgn/gateway/config"
+	"github.com/gateway/gateway/config"
 )
 
 // TypeID IEC104 类型标识符

@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/cgn/gateway/internal/model"
+	"github.com/gateway/gateway/internal/model"
 )
 
 // Exporter 北向转发接口。

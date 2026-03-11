@@ -1,11 +1,11 @@
 # ==============================================================================
-# CGN IoT Gateway Makefile
+# IoT Gateway Makefile
 # 纯Go实现，无痛交叉编译
 # ==============================================================================
 
 # ── 基础变量 ──────────────────────────────────────────────────────────────────
-MODULE      := github.com/cgn/gateway
-BINARY      := cgn-gateway
+MODULE      := github.com/gateway/gateway
+BINARY      := gateway
 CMD_PKG     := ./cmd/gateway
 
 # 版本信息（从 git tag 获取，找不到则用 "dev"）

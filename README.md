@@ -2,6 +2,17 @@
 
 基于Go语言开发的高性能工业物联网网关，支持Modbus TCP、IEC 60870-5-104等多种协议，通过配置文件驱动，支持分频采集和灵活的北向导出。
 
+## 更新日志
+
+### 2026-03-11
+- 移除所有CGN标识，统一使用通用命名
+- 更新模块路径为 `github.com/gateway/gateway`
+- 更新默认网关名称为 `Gateway`
+- 更新默认客户端ID为 `gateway` 和 `gateway-producer`
+- **实现Kafka导出器**：使用 `segmentio/kafka-go` 完成Kafka消息发送功能
+- 添加Kafka配置项：异步写入、批量大小、压缩、确认级别等
+- 重新构建项目，验证所有修改正常工作
+
 ## 特性
 
 - ✅ **配置驱动**：通过YAML配置文件和CSV点表文件实现灵活配置
@@ -64,7 +75,7 @@ exporters:
     type: mqtt
     enabled: true
     broker: tcp://192.168.1.10:1883
-    topic_prefix: cgn/gateway
+    topic_prefix: gateway
 ```
 
 ### 3. 点表文件
@@ -146,6 +157,23 @@ drivers:
       timeout: 3s                   # 请求超时
       poll_interval: 1s             # 轮询间隔
       max_retry_interval: 60s       # 最大重连间隔
+```
+
+#### Kafka导出器配置
+```yaml
+exporters:
+  kafka:
+    enabled: true                   # 是否启用Kafka导出
+    brokers:                        # Kafka broker列表
+      - "192.168.1.100:9092"
+    topic: "gateway-data"           # 主题名称
+    client_id: "gateway-producer"   # 客户端ID
+    async: true                     # 是否异步写入（高吞吐）
+    timeout: 5s                     # 写入超时
+    batch_size: 100                 # 批量大小
+    batch_timeout: 10ms             # 批量超时
+    compression: "none"             # 压缩类型：none, gzip, snappy, lz4, zstd
+    acks: 1                         # 确认级别：0=不确认, 1=leader确认, -1=all确认
 ```
 
 ### 点表文件说明
@@ -235,7 +263,7 @@ drivers:
 ## 项目结构
 
 ```
-CGNgateway-go/
+gateway-go/
 ├── cmd/
 │   └── gateway/           # 网关主程序
 │       └── main.go

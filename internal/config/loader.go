@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cgn/gateway/config"
+	"github.com/gateway/gateway/config"
 	"gopkg.in/yaml.v3"
 	"go.uber.org/zap"
 )
@@ -201,7 +201,7 @@ func (l *Loader) validate(cfg *config.AppConfig) error {
 func (l *Loader) fillDefaults(cfg *config.AppConfig) {
 	// 网关默认值
 	if cfg.Gateway.Name == "" {
-		cfg.Gateway.Name = "CGN-Gateway"
+		cfg.Gateway.Name = "Gateway"
 	}
 	if cfg.Gateway.Version == "" {
 		cfg.Gateway.Version = "1.0.0"
@@ -266,7 +266,7 @@ func (l *Loader) fillDefaults(cfg *config.AppConfig) {
 	// MQTT 默认值
 	if cfg.Exporters.MQTT != nil {
 		if cfg.Exporters.MQTT.ClientID == "" {
-			cfg.Exporters.MQTT.ClientID = "cgn-gateway"
+			cfg.Exporters.MQTT.ClientID = "gateway"
 		}
 		if cfg.Exporters.MQTT.TopicPrefix == "" {
 			cfg.Exporters.MQTT.TopicPrefix = "gateway/data"
@@ -282,13 +282,22 @@ func (l *Loader) fillDefaults(cfg *config.AppConfig) {
 	// Kafka 默认值
 	if cfg.Exporters.Kafka != nil {
 		if cfg.Exporters.Kafka.ClientID == "" {
-			cfg.Exporters.Kafka.ClientID = "cng-gateway-producer"
+			cfg.Exporters.Kafka.ClientID = "gateway-producer"
 		}
 		if cfg.Exporters.Kafka.Topic == "" {
 			cfg.Exporters.Kafka.Topic = "gateway-data"
 		}
 		if cfg.Exporters.Kafka.Compression == "" {
 			cfg.Exporters.Kafka.Compression = "none"
+		}
+		if cfg.Exporters.Kafka.Timeout == 0 {
+			cfg.Exporters.Kafka.Timeout = 5 * 1000000000 // 5s
+		}
+		if cfg.Exporters.Kafka.BatchSize == 0 {
+			cfg.Exporters.Kafka.BatchSize = 100
+		}
+		if cfg.Exporters.Kafka.BatchTimeout == 0 {
+			cfg.Exporters.Kafka.BatchTimeout = 10 * 1000000 // 10ms
 		}
 		if cfg.Exporters.Kafka.FlushMessages == 0 {
 			cfg.Exporters.Kafka.FlushMessages = 100

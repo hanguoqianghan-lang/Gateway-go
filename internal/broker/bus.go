@@ -15,7 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/cgn/gateway/internal/model"
+	"github.com/gateway/gateway/internal/model"
 )
 
 // ─── DeadbandFilter ───────────────────────────────────────────────────────────

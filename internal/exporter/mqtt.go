@@ -18,7 +18,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/cgn/gateway/internal/model"
+	"github.com/gateway/gateway/internal/model"
 	"go.uber.org/zap"
 )
 
@@ -36,7 +36,7 @@ type MQTTConfig struct {
 // DefaultMQTTConfig 默认配置（本地 broker，订阅 gateway/data/# 即可接收）
 var DefaultMQTTConfig = MQTTConfig{
 	Broker:      "tcp://127.0.0.1:1883",
-	ClientID:    "cgn-gateway",
+	ClientID:    "gateway",
 	TopicPrefix: "gateway/data",
 	QoS:         1,
 	ConnTimeout: 5 * time.Second,

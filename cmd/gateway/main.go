@@ -12,14 +12,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cgn/gateway/config"
-	cfgloader "github.com/cgn/gateway/internal/config"
-	"github.com/cgn/gateway/internal/broker"
-	"github.com/cgn/gateway/internal/driver"
+	"github.com/gateway/gateway/config"
+	cfgloader "github.com/gateway/gateway/internal/config"
+	"github.com/gateway/gateway/internal/broker"
+	"github.com/gateway/gateway/internal/driver"
 	// 导入驱动包以触发 init() 注册
-	_ "github.com/cgn/gateway/internal/driver/iec104"
-	_ "github.com/cgn/gateway/internal/driver/modbus"
-	"github.com/cgn/gateway/internal/exporter"
+	_ "github.com/gateway/gateway/internal/driver/iec104"
+	_ "github.com/gateway/gateway/internal/driver/modbus"
+	"github.com/gateway/gateway/internal/exporter"
 	"go.uber.org/zap"
 )
 
@@ -225,8 +225,26 @@ func initExporters(cfg *config.AppConfig, logger *zap.Logger) []exporter.Exporte
 
 	// Kafka导出器
 	if cfg.Exporters.Kafka != nil && cfg.Exporters.Kafka.Enabled {
-		// TODO: 实现Kafka导出器
-		logger.Warn("Kafka导出器暂未实现")
+		kafkaCfg := exporter.KafkaConfig{
+			Brokers:      cfg.Exporters.Kafka.Brokers,
+			Topic:        cfg.Exporters.Kafka.Topic,
+			Async:        cfg.Exporters.Kafka.Async,
+			Timeout:      cfg.Exporters.Kafka.Timeout,
+			BatchSize:    cfg.Exporters.Kafka.BatchSize,
+			BatchTimeout: cfg.Exporters.Kafka.BatchTimeout,
+			RequiredAcks: cfg.Exporters.Kafka.Acks,
+			Compression:  cfg.Exporters.Kafka.Compression,
+		}
+
+		exp := exporter.NewKafkaExporter(logger, kafkaCfg, exporter.BatchConfig{
+			MaxSize:    cfg.Exporters.Batch.MaxSize,
+			MaxLatency: cfg.Exporters.Batch.MaxLatency,
+		})
+
+		exporters = append(exporters, exp)
+		logger.Info("Kafka导出器初始化完成",
+			zap.Strings("brokers", kafkaCfg.Brokers),
+			zap.String("topic", kafkaCfg.Topic))
 	}
 
 	return exporters

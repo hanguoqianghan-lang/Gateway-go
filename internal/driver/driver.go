@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/cgn/gateway/internal/broker"
+	"github.com/gateway/gateway/internal/broker"
 	"go.uber.org/zap"
 )
 

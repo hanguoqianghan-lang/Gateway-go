@@ -9,8 +9,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/cgn/gateway/config"
-	"github.com/cgn/gateway/internal/driver"
+	"github.com/gateway/gateway/config"
+	"github.com/gateway/gateway/internal/driver"
 	"go.uber.org/zap"
 )
 

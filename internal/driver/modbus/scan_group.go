@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cgn/gateway/internal/broker"
-	"github.com/cgn/gateway/internal/model"
+	"github.com/gateway/gateway/internal/broker"
+	"github.com/gateway/gateway/internal/model"
 	"github.com/simonvetter/modbus"
 	"go.uber.org/zap"
 )

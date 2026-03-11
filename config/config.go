@@ -27,7 +27,7 @@ type AppConfig struct {
 // GatewayConfig 网关基本信息
 type GatewayConfig struct {
 	// Name 网关名称
-	Name string `yaml:"name" json:"name" default:"CGN-Gateway"`
+	Name string `yaml:"name" json:"name" default:"Gateway"`
 	// Version 网关版本
 	Version string `yaml:"version" json:"version" default:"1.0.0"`
 	// MetricsAddr HTTP metrics 服务地址（如 :8080），为空则使用默认 :8080
@@ -126,7 +126,7 @@ type MQTTExporterConfig struct {
 	// Broker MQTT broker 地址
 	Broker string `yaml:"broker" json:"broker" default:"tcp://127.0.0.1:1883"`
 	// ClientID 客户端 ID
-	ClientID string `yaml:"client_id" json:"client_id" default:"cgn-gateway"`
+	ClientID string `yaml:"client_id" json:"client_id" default:"gateway"`
 	// TopicPrefix 发布主题前缀
 	TopicPrefix string `yaml:"topic_prefix" json:"topic_prefix" default:"gateway/data"`
 	// QoS 服务质量等级：0, 1, 2
@@ -148,14 +148,22 @@ type KafkaExporterConfig struct {
 	// Topic 主题名称
 	Topic string `yaml:"topic" json:"topic" default:"gateway-data"`
 	// ClientID 客户端 ID
-	ClientID string `yaml:"client_id" json:"client_id" default:"cng-gateway-producer"`
+	ClientID string `yaml:"client_id" json:"client_id" default:"gateway-producer"`
+	// Async 是否异步写入
+	Async bool `yaml:"async" json:"async" default:"true"`
+	// Timeout 写入超时
+	Timeout time.Duration `yaml:"timeout" json:"timeout" default:"5s"`
+	// BatchSize 批量大小
+	BatchSize int `yaml:"batch_size" json:"batch_size" default:"100"`
+	// BatchTimeout 批量超时
+	BatchTimeout time.Duration `yaml:"batch_timeout" json:"batch_timeout" default:"10ms"`
 	// Compression 压缩类型：none, gzip, snappy, lz4, zstd
 	Compression string `yaml:"compression" json:"compression" default:"none"`
-	// FlushMessages 批量发送消息数
+	// FlushMessages 批量发送消息数（已废弃，使用BatchSize）
 	FlushMessages int `yaml:"flush_messages" json:"flush_messages" default:"100"`
-	// FlushTimeout 批量发送超时
+	// FlushTimeout 批量发送超时（已废弃，使用BatchTimeout）
 	FlushTimeout time.Duration `yaml:"flush_timeout" json:"flush_timeout" default:"1s"`
-	// Acks 确认级别：0, 1, all
+	// Acks 确认级别：0, 1, -1
 	Acks int `yaml:"acks" json:"acks" default:"1"`
 }
 
@@ -202,5 +210,5 @@ type NTPConfig struct {
 	// Interval 同步间隔
 	Interval time.Duration `yaml:"interval" json:"interval" default:"1h"`
 	// Timeout 超时时间
-	Timeout time.Duration `yaml:"timeout" json:"timeout" default:"5s`
+	Timeout time.Duration `yaml:"timeout" json:"timeout" default:"5s"`
 }

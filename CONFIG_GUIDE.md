@@ -111,10 +111,10 @@ exporters:
     type: mqtt
     enabled: true  # 是否启用
     broker: tcp://192.168.1.10:1883  # MQTT代理地址
-    client_id: cgn-gateway  # 客户端ID
+    client_id: gateway  # 客户端ID
     username: user  # 用户名(可选)
     password: pass  # 密码(可选)
-    topic_prefix: cgn/gateway  # 主题前缀
+    topic_prefix: gateway  # 主题前缀
     qos: 1  # QoS级别: 0, 1, 2
     retain: false  # 是否保留消息
 ```

@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/cgn/gateway/internal/model"
+	"github.com/gateway/gateway/internal/model"
 )
 
 // TestDeadbandFilter_Disabled 测试禁用死区过滤

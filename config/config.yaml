@@ -3,7 +3,7 @@
 
 gateway:
   # 网关名称:
-  name: "CGN-Gateway"
+  name: "Gateway"
   # 网关版本
   version: "1.0.0"
   # 日志文件路径（可选，未配置则输出到控制台）
@@ -72,7 +72,7 @@ exporters:
     # MQTT broker 地址
     broker: "tcp://127.0.0.1:1883"
     # 客户端 ID
-    client_id: "cgn-gateway-pub"
+    client_id: "gateway-pub"
     # 发布主题前缀（完整主题 = topic_prefix/<driver_name>）
     topic_prefix: "gateway/data"
     # 服务质量等级：0, 1, 2
@@ -94,14 +94,18 @@ exporters:
   #   # 主题名称
   #   topic: "gateway-data"
   #   # 客户端 ID
-  #   client_id: "cng-gateway-producer"
+  #   client_id: "gateway-producer"
+  #   # 是否异步写入（高吞吐）
+  #   async: true
+  #   # 写入超时
+  #   timeout: 5s
+  #   # 批量大小
+  #   batch_size: 100
+  #   # 批量超时
+  #   batch_timeout: 10ms
   #   # 压缩类型：none, gzip, snappy, lz4, zstd
   #   compression: "none"
-  #   # 批量发送消息数
-  #   flush_messages: 100
-  #   # 批量发送超时
-  #   flush_timeout: 1s
-  #   # 确认级别：0, 1, all
+  #   # 确认级别：0=不确认, 1=leader确认, -1=all确认
   #   acks: 1
 
   # 批量发送配置（所有导出器共用）

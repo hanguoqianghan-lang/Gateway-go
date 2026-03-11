@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cgn/gateway/internal/model"
+	"github.com/gateway/gateway/internal/model"
 )
 
 // BatchHandler 批次处理回调，由具体导出器（MQTT/Kafka）实现。
