@@ -118,7 +118,13 @@ type IEC104DriverConfig struct {
 
 // IEC101DriverConfig IEC101 驱动配置
 type IEC101DriverConfig struct {
-	// SerialPort 串口设备路径
+	// Transport 接入方式："serial" 或 "tcp"
+	//   - serial → 走串口 (goburrow/serial + com0com 真串口对)
+	//   - tcp    → 调试用，net.Dial 到 TCPAddr（mocksvr-iec101 之类）
+	Transport string `yaml:"transport" json:"transport" default:"serial"`
+	// TCPAddr TCP 接入地址，如 "127.0.0.1:8881"（Transport=tcp 必填）
+	TCPAddr string `yaml:"tcp_addr" json:"tcp_addr"`
+	// SerialPort 串口设备路径（如 COM3/COM4，由 com0com 映射）
 	SerialPort string `yaml:"serial_port" json:"serial_port"`
 	// BaudRate 波特率
 	BaudRate int `yaml:"baud_rate" json:"baud_rate" default:"9600"`

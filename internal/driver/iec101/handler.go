@@ -65,6 +65,12 @@ func (h *Handler) HandleASDU(asdu *ASDU) error {
 	case C_IC_NA_1:
 		return h.handleInterrogationResponse(asdu)
 
+	// 成组单点（每字节 8 个遥信，M_PS_NA_1 = 20）
+	// 与 mocksvr-iec101 的 buildYCValueGroup 输出对齐：
+	//   ioa(2) + (BSI[0] ... BSI[N/2])，(N/2) 字节放 N 个遥信
+	case M_PS_NA_1:
+		return h.handleBitStringGroup(asdu)
+
 	default:
 		h.logger.Debug("unsupported ASDU type",
 			zap.Uint8("type_id", asdu.TypeID),
@@ -415,6 +421,79 @@ func (h *Handler) handleInterrogationResponse(asdu *ASDU) error {
 		zap.Uint8("cot", asdu.COT),
 		zap.Uint8("ca", asdu.CA),
 	)
+	return nil
+}
+
+// handleBitStringGroup 处理成组单点遥信 (M_PS_NA_1 = 20)
+//
+// 报文格式（与 mocksvr-iec101 的 buildYCValueGroup 对齐）：
+//   - VSQ = 信息体个数（每个信息体 = 16 个遥信）
+//   - 每组 (SQ=0):
+//       IOA(2) + state(2, 16 位 = 16 个遥信) + change(2, 16 位变位检出) + QDS(1)
+//   - 每组 (SQ=1):
+//       state(2) + change(2) + QDS(1) — IOA 由前一 IOA 自增推进
+//
+// 解析策略：
+//   - state 共 2 字节 = 16 位，每位是 1 个遥信 (0/1)
+//   - IOA 顺序：groupIOA, groupIOA+1, ..., groupIOA+15
+func (h *Handler) handleBitStringGroup(asdu *ASDU) error {
+	infoObjCount := asdu.GetInfoObjCount()
+	if infoObjCount == 0 {
+		return nil
+	}
+	isSequence := asdu.IsSequence()
+
+	offset := 0
+	var baseIOA uint16
+
+	for i := 0; i < infoObjCount; i++ {
+		var groupIOA uint16
+		var stateBytes []byte
+		var qds uint8
+
+		if isSequence && i > 0 {
+			// SQ=1：从 baseIOA 起，仅 IOA 在信息体外递增
+			groupIOA = baseIOA + uint16(i*16)
+			if len(asdu.InfoObj) < offset+3 {
+				break
+			}
+			stateBytes = asdu.InfoObj[offset : offset+2]
+			// change 在 state 之后
+			qds = asdu.InfoObj[offset+2]
+			offset += 3
+		} else {
+			// SQ=0：每组独立（IOA + state + change + QDS）
+			if len(asdu.InfoObj) < offset+7 {
+				break
+			}
+			groupIOA = binary.LittleEndian.Uint16(asdu.InfoObj[offset : offset+2])
+			stateBytes = asdu.InfoObj[offset+2 : offset+4]
+			// change 在 mocksvr 里是无业务语义的 2 字节
+			qds = asdu.InfoObj[offset+6]
+			offset += 7
+
+			if i == 0 {
+				baseIOA = groupIOA
+			}
+		}
+
+		if len(stateBytes) < 2 {
+			continue
+		}
+		// 拆分 16 位 → 16 个单点值（LSB→MSB 对应 IOA 自增方向）
+		var bits uint16 = uint16(stateBytes[0]) | (uint16(stateBytes[1]) << 8)
+		for bit := 0; bit < 16; bit++ {
+			ioa := groupIOA + uint16(bit)
+			bitVal := (bits >> uint(bit)) & 0x01
+			h.publishPointData(asdu.CA, ioa, func() float64 {
+				if bitVal == 1 {
+					return 1.0
+				}
+				return 0.0
+			}, qds)
+		}
+	}
+
 	return nil
 }
 

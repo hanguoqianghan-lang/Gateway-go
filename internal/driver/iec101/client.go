@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"sync"
 	"time"
 
@@ -56,6 +57,7 @@ const (
 	M_ME_TC_1 = 14 // 测量值短浮点数带时标
 	M_IT_NA_1 = 15 // 累积量
 	M_IT_TA_1 = 16 // 累积量带时标
+	M_PS_NA_1 = 20 // 成组单点信息（每字节 8 个遥信，无时标）
 
 	// ASDU 类型标识（控制方向）
 	C_SC_NA_1 = 45 // 单点命令
@@ -128,19 +130,24 @@ const (
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Client IEC101 客户端
+//
+// 连接抽象：
+//   - Transport="serial" → 走 goburrow/serial.Open() 开 config.SerialPort
+//   - Transport="tcp"    → 走 net.Dial("tcp", config.TCPAddr) 连远端子站
+//   - 内部一律以 io.ReadWriteCloser 为端口抽象，对上层读写帧逻辑零侵入。
 type Client struct {
 	config Config
 	logger *zap.Logger
 
-	// 串口
-	port     serial.Port
-	portMu   sync.Mutex
-	isOpen   bool
+	// 端口抽象（serial.Port 或 net.Conn，二者均实现 io.ReadWriteCloser）
+	port   io.ReadWriteCloser
+	portMu sync.Mutex
+	isOpen bool
 
 	// 链路状态
-	sendSeq  byte // 发送序列号
-	recvSeq  byte // 接收序列号
-	seqMu    sync.Mutex
+	sendSeq byte // 发送序列号
+	recvSeq byte // 接收序列号
+	seqMu   sync.Mutex
 
 	// 统计
 	stats ClientStats
@@ -161,7 +168,13 @@ func NewClient(config Config, logger *zap.Logger) *Client {
 	}
 }
 
-// Connect 连接串口
+// Connect 根据 Transport 选择串口或 TCP 模式建立连接
+//
+//   - Transport=="tcp"    → net.Dial("tcp", config.TCPAddr)，超时 = config.CharTimeout
+//   - Transport=="serial" → goburrow/serial.Open(config.SerialPort, ...)
+//   - 默认/其他值 → 保留旧行为（serial），与历史 yaml 兼容
+//
+// 两路返回的连接都被存为 io.ReadWriteCloser 对外暴露，关闭/读写路径统一。
 func (c *Client) Connect() error {
 	c.portMu.Lock()
 	defer c.portMu.Unlock()
@@ -170,32 +183,57 @@ func (c *Client) Connect() error {
 		return nil
 	}
 
-	// 配置串口参数
-	cfg := &serial.Config{
-		Address:  c.config.SerialPort,
-		BaudRate: c.config.BaudRate,
-		DataBits: c.config.DataBits,
-		StopBits: c.config.StopBits,
-		Parity:   c.parseParity(c.config.Parity),
-		Timeout:  c.config.CharTimeout,
+	switch Transport(c.config.Transport) {
+	case TransportTCP:
+		addr := c.config.TCPAddr
+		if addr == "" {
+			return fmt.Errorf("iec101 tcp transport requires non-empty tcp_addr")
+		}
+		timeout := c.config.CharTimeout
+		if timeout <= 0 {
+			timeout = 5 * time.Second
+		}
+		conn, err := net.DialTimeout("tcp", addr, timeout)
+		if err != nil {
+			return fmt.Errorf("iec101 tcp dial %s failed: %w", addr, err)
+		}
+		c.port = conn.(io.ReadWriteCloser)
+		c.isOpen = true
+		c.logger.Info("iec101 tcp connected",
+			zap.String("addr", addr),
+			zap.Duration("timeout", timeout),
+		)
+		return nil
+
+	case TransportSerial, "":
+		// 配置串口参数
+		cfg := &serial.Config{
+			Address:  c.config.SerialPort,
+			BaudRate: c.config.BaudRate,
+			DataBits: c.config.DataBits,
+			StopBits: c.config.StopBits,
+			Parity:   c.parseParity(c.config.Parity),
+			Timeout:  c.config.CharTimeout,
+		}
+
+		// 打开串口
+		port, err := serial.Open(cfg)
+		if err != nil {
+			return fmt.Errorf("open serial port failed: %w", err)
+		}
+		c.port = port
+		c.isOpen = true
+		c.logger.Info("serial port opened",
+			zap.String("port", c.config.SerialPort),
+			zap.Int("baud_rate", c.config.BaudRate),
+			zap.String("parity", c.config.Parity),
+		)
+		return nil
+
+	default:
+		return fmt.Errorf("unknown iec101 transport mode: %q (want %q or %q)",
+			c.config.Transport, TransportSerial, TransportTCP)
 	}
-
-	// 打开串口
-	port, err := serial.Open(cfg)
-	if err != nil {
-		return fmt.Errorf("open serial port failed: %w", err)
-	}
-
-	c.port = port
-	c.isOpen = true
-
-	c.logger.Info("serial port opened",
-		zap.String("port", c.config.SerialPort),
-		zap.Int("baud_rate", c.config.BaudRate),
-		zap.String("parity", c.config.Parity),
-	)
-
-	return nil
 }
 
 // parseParity 解析校验位

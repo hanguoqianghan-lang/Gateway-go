@@ -201,9 +201,10 @@ func (d *Driver) connectLoop() {
 			continue
 		}
 
-		// 启动接收循环
+		// 启动接收循环（必须异步——否则会永远卡在 receiveLoop，
+		// 后续的 generalInterrogationLoop 永远不会被启动）
 		d.wg.Add(1)
-		d.receiveLoop()
+		go d.receiveLoop()
 
 		// 启动总召唤定时器（非平衡模式）
 		if !d.config.BalancedMode && d.config.GIInterval > 0 {

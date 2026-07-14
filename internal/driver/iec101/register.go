@@ -2,12 +2,14 @@
 package iec101
 
 import (
+	"bufio"
 	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gateway/gateway/config"
@@ -58,6 +60,8 @@ func NewIEC101DriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, 
 
 	// 解析串口配置
 	if drvCfg.IEC101 != nil {
+		iec101Cfg.Transport = drvCfg.IEC101.Transport
+		iec101Cfg.TCPAddr = drvCfg.IEC101.TCPAddr
 		iec101Cfg.SerialPort = drvCfg.IEC101.SerialPort
 		iec101Cfg.BaudRate = drvCfg.IEC101.BaudRate
 		iec101Cfg.DataBits = drvCfg.IEC101.DataBits
@@ -91,7 +95,35 @@ func parseIEC101CSV(filePath string, logger *zap.Logger) ([]iec101PointCSV, erro
 	}
 	defer file.Close()
 
-	reader := csv.NewReader(file)
+	fileCheck, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("open CSV file failed: %w", err)
+	}
+	// 先扫一遍，跳过以 '#' 开头的注释行（保留其余行）
+	var lines []string
+	scanner := bufio.NewScanner(fileCheck)
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimLeft(line, " 	\r")
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		// 也跳过空行/全空白行
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		lines = append(lines, line)
+	}
+	fileCheck.Close()
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan CSV file failed: %w", err)
+	}
+	if len(lines) < 2 {
+		return nil, fmt.Errorf("CSV file empty after skipping comments: %s", filePath)
+	}
+
+	// 用过滤后的行回喂 csv.Reader
+	reader := csv.NewReader(strings.NewReader(strings.Join(lines, "\n")))
 
 	// 读取表头
 	headers, err := reader.Read()

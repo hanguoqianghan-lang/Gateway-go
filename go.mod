@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.0
+	github.com/goburrow/serial v0.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/segmentio/kafka-go v0.4.50
 	github.com/simonvetter/modbus v1.6.4
@@ -14,7 +15,6 @@ require (
 )
 
 require (
-	github.com/goburrow/serial v0.1.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect

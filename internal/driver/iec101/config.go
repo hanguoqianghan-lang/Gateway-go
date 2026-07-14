@@ -2,7 +2,22 @@
 package iec101
 
 import (
+	"strings"
 	"time"
+)
+
+// Transport 接入方式
+//
+//   - TransportSerial → 真实串口 (goburrow/serial)，现场施工的 com0com/RTU 一对端
+//   - TransportTCP    → 调试用：TCP socket 接入远端子站（mocksvr-iec101 / 仿真器）
+//
+// 选用 string 而非独立类型，是为了 YAML 反序列化 / 直接字符串比较最省事；
+// switch 默认走 string 比较，无类型转换成本。
+type Transport string
+
+const (
+	TransportSerial Transport = "serial"
+	TransportTCP    Transport = "tcp"
 )
 
 // Config IEC101 驱动配置
@@ -11,15 +26,23 @@ type Config struct {
 	ID   string // 驱动 ID
 	Name string // 驱动名称
 
-	// 串口配置
-	SerialPort     string        // 串口设备路径，如 "/dev/ttyUSB0" 或 "COM1"
-	BaudRate       int           // 波特率，如 9600, 19200, 38400
-	DataBits       int           // 数据位，通常为 8
-	StopBits       int           // 停止位，1 或 2
-	Parity         string        // 校验位："none", "even", "odd"（IEC101 通常使用 even）
-	CharTimeout    time.Duration // 字符间超时（防止报文断裂）
-	FrameTimeout   time.Duration // 帧超时
+	// 接入方式："serial" 或者 "tcp"，默认 "serial"
+	//   - serial → 必须填 SerialPort + 串口参数
+	//   - tcp    → 必须填 TCPAddr，形如 "127.0.0.1:8881"
+	Transport string
+
+	// 串口配置（Transport=serial 时必填）
+	SerialPort      string        // 串口设备路径，如 "/dev/ttyUSB0" 或 "COM1"
+	BaudRate        int           // 波特率，如 9600, 19200, 38400
+	DataBits        int           // 数据位，通常为 8
+	StopBits        int           // 停止位，1 或 2
+	Parity          string        // 校验位："none", "even", "odd"（IEC101 通常使用 even）
+	CharTimeout     time.Duration // 字符间超时（防止报文断裂）
+	FrameTimeout    time.Duration // 帧超时
 	ResponseTimeout time.Duration // 响应超时
+
+	// TCP 接入（Transport=tcp 时必填）
+	TCPAddr string // TCP 地址，如 "127.0.0.1:8881"
 
 	// 协议参数
 	CommonAddress   uint8  // 公共地址（ASDU.CommonAddr）
@@ -95,26 +118,48 @@ func DefaultConfig() Config {
 }
 
 // Validate 校验配置
+//
+// 分 transport 校验：
+//   - "tcp"    → TCPAddr 必填、格式 host:port、字段 SerialPort/BaudRate 可为空
+//   - "serial" → SerialPort 必填、波特率合法、偶校验 (与 IEC101 规范一致)
+//   - ""       → 同 serial，旧 yaml 行为兼容
+//   - 其他     → 直接报错
 func (c *Config) Validate() error {
-	if c.SerialPort == "" {
-		return ErrInvalidConfig("serial port cannot be empty")
+	switch Transport(c.Transport) {
+	case TransportTCP:
+		if c.TCPAddr == "" {
+			return ErrInvalidConfig("tcp_addr cannot be empty when transport=tcp")
+		}
+		if !strings.Contains(c.TCPAddr, ":") {
+			return ErrInvalidConfig("tcp_addr must be host:port form, got " + c.TCPAddr)
+		}
+		// tcp 下串口参数不强校验，给调试用
+		return nil
+
+	case TransportSerial, "":
+		if c.SerialPort == "" {
+			return ErrInvalidConfig("serial port cannot be empty")
+		}
+		if c.BaudRate <= 0 {
+			return ErrInvalidConfig("baud rate must be positive")
+		}
+		if c.DataBits < 5 || c.DataBits > 8 {
+			return ErrInvalidConfig("data bits must be in range [5, 8]")
+		}
+		if c.StopBits < 1 || c.StopBits > 2 {
+			return ErrInvalidConfig("stop bits must be 1 or 2")
+		}
+		if c.Parity != "" && c.Parity != "none" && c.Parity != "even" && c.Parity != "odd" {
+			return ErrInvalidConfig("parity must be 'none', 'even', or 'odd'")
+		}
+		if c.CommonAddress == 0 {
+			return ErrInvalidConfig("common address cannot be 0")
+		}
+		return nil
+
+	default:
+		return ErrInvalidConfig("unknown transport: " + c.Transport)
 	}
-	if c.BaudRate <= 0 {
-		return ErrInvalidConfig("baud rate must be positive")
-	}
-	if c.DataBits < 5 || c.DataBits > 8 {
-		return ErrInvalidConfig("data bits must be in range [5, 8]")
-	}
-	if c.StopBits < 1 || c.StopBits > 2 {
-		return ErrInvalidConfig("stop bits must be 1 or 2")
-	}
-	if c.Parity != "none" && c.Parity != "even" && c.Parity != "odd" {
-		return ErrInvalidConfig("parity must be 'none', 'even', or 'odd'")
-	}
-	if c.CommonAddress == 0 {
-		return ErrInvalidConfig("common address cannot be 0")
-	}
-	return nil
 }
 
 // ConfigError 配置错误

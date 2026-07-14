@@ -9,7 +9,7 @@ gateway:
   # 日志文件路径（可选，未配置则输出到控制台）
   log_path: "./logs/gateway.log"
   # 日志级别：debug, info, warn, error
-  log_level: "error"
+  log_level: "debug"
   # 日志文件最大大小（MB）
   log_max_size: 10
   # 日志文件最大备份数
@@ -62,6 +62,32 @@ drivers:
       clock_sync_interval: 1h
       gi_staggered_delay: 30s
       enable_system_metrics: true
+
+  # IEC101 驱动（演示：Transport=tcp 接 mocksvr-iec101:8881，不走真串口）
+  # 如果接真子站，把 transport 改 serial，并填 serial_port + 串口参数。
+  - id: "iec101-mock-01"
+    type: "iec101"
+    enabled: true
+    name: "iec101-test"
+    point_file: "./points/iec101.csv"
+
+    iec101:
+      # 接入方式：serial | tcp
+      transport: "tcp"
+      # tcp 模式必填，serial 模式可省
+      tcp_addr: "127.0.0.1:8881"
+      # serial 模式才需要这几行（接 com0com COM3 等）
+      # serial_port: "COM3"
+      # baud_rate: 9600
+      # data_bits: 8
+      # stop_bits: 1
+      # parity: "even"
+      common_address: 1
+      link_address: 1
+      balanced_mode: false
+      gi_interval: 15m
+      poll_interval: 1s
+      timeout: 3s
 
 # 北向导出器配置
 exporters:

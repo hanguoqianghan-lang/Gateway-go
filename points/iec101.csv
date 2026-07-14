@@ -1,45 +1,168 @@
 # IEC 60870-5-101 点表配置
 # 格式：Name,CA,IOA,TypeID,Scale,Offset,Interval,DeadbandValue,DeadbandType
 #
-# 字段说明：
-#   Name: 测点名称
-#   CA: 公共地址（Common Address）
-#   IOA: 信息对象地址（Information Object Address）
-#   TypeID: ASDU 类型标识
-#   Scale: 缩放因子（可选，默认 1.0）
-#   Offset: 偏移量（可选，默认 0.0）
-#   Interval: 采集间隔（毫秒，可选，默认 0）
-#   DeadbandValue: 死区阈值（可选，默认 0）
-#   DeadbandType: 死区类型（absolute/percent，可选，默认 absolute）
-#
-# 类型标识参考：
-#   1  - M_SP_NA_1  单点信息
-#   3  - M_DP_NA_1  双点信息
-#   5  - M_ST_NA_1  步位置信息
-#   7  - M_BO_NA_1  32位比特串
-#   9  - M_ME_NA_1  测量值归一化值
-#   11 - M_ME_NB_1  测量值标度化值
-#   13 - M_ME_NC_1  测量值短浮点数
-#   15 - M_IT_NA_1  累积量
-
-# 单点遥信
+# 单点遥信 (TypeID=1, M_SP_NA_1)：IOA 0x01..0x40 共 64 点，bit-packed
+# 测量值归一化 (TypeID=9, M_ME_NA_1)：IOA 0x95..0xF4 共 96 点
+# 与 cmd/mocksvr-iec101/main.go 的 buildGI 路径对齐。
+Name,CA,IOA,TypeID,Scale,Offset,Interval,DeadbandValue,DeadbandType
 breaker_status,1,1,1,1,0,0,0,absolute
 switch_status,1,2,1,1,0,0,0,absolute
-
-# 双点遥信
-breaker_position,1,3,3,1,0,0,0,absolute
-
-# 测量值（短浮点数）
-voltage_a,1,10,13,1,0,0,0.1,absolute
-voltage_b,1,11,13,1,0,0,0.1,absolute
-voltage_c,1,12,13,1,0,0,0.1,absolute
-current_a,1,13,13,1,0,0,0.01,absolute
-current_b,1,14,13,1,0,0,0.01,absolute
-current_c,1,15,13,1,0,0,0.01,absolute
-
-# 测量值（标度化值）
-active_power,1,20,11,0.1,0,0,1,absolute
-reactive_power,1,21,11,0.1,0,0,1,absolute
-
-# 带缩放的温度测量
-temperature,1,30,13,0.1,0,0,0.5,absolute
+breaker_position,1,3,1,1,0,0,0,absolute
+ground_switch,1,4,1,1,0,0,0,absolute
+isolator_status,1,5,1,1,0,0,0,absolute
+protection_active,1,6,1,1,0,0,0,absolute
+alarm_overcurrent,1,7,1,1,0,0,0,absolute
+alarm_overvoltage,1,8,1,1,0,0,0,absolute
+alarm_undervoltage,1,9,1,1,0,0,0,absolute
+alarm_frequency,1,10,1,1,0,0,0,absolute
+trip_main,1,11,1,1,0,0,0,absolute
+trip_backup,1,12,1,1,0,0,0,absolute
+trip_zone1,1,13,1,1,0,0,0,absolute
+trip_zone2,1,14,1,1,0,0,0,absolute
+trip_zone3,1,15,1,1,0,0,0,absolute
+auto_reclose,1,16,1,1,0,0,0,absolute
+manual_close,1,17,1,1,0,0,0,absolute
+manual_open,1,18,1,1,0,0,0,absolute
+emergency_stop,1,19,1,1,0,0,0,absolute
+local_control,1,20,1,1,0,0,0,absolute
+remote_control,1,21,1,1,0,0,0,absolute
+test_mode,1,22,1,1,0,0,0,absolute
+maintenance_mode,1,23,1,1,0,0,0,absolute
+battery_low,1,24,1,1,0,0,0,absolute
+door_open,1,25,1,1,0,0,0,absolute
+fire_alarm,1,26,1,1,0,0,0,absolute
+smoke_alarm,1,27,1,1,0,0,0,absolute
+water_alarm,1,28,1,1,0,0,0,absolute
+intrusion_alarm,1,29,1,1,0,0,0,absolute
+tamper_alarm,1,30,1,1,0,0,0,absolute
+communication_ok,1,31,1,1,0,0,0,absolute
+cpu_ok,1,32,1,1,0,0,0,absolute
+memory_ok,1,33,1,1,0,0,0,absolute
+power_supply_ok,1,34,1,1,0,0,0,absolute
+aux_power_ok,1,35,1,1,0,0,0,absolute
+trip_circuit_ok,1,36,1,1,0,0,0,absolute
+closing_circuit_ok,1,37,1,1,0,0,0,absolute
+spring_charged,1,38,1,1,0,0,0,absolute
+sf6_pressure,1,39,1,1,0,0,0,absolute
+oil_temperature,1,40,1,1,0,0,0,absolute
+winding_temperature,1,41,1,1,0,0,0,absolute
+load_current_present,1,42,1,1,0,0,0,absolute
+breaker_wear,1,43,1,1,0,0,0,absolute
+sf6_density,1,44,1,1,0,0,0,absolute
+humidity_alarm,1,45,1,1,0,0,0,absolute
+transformer_tap_changing,1,46,1,1,0,0,0,absolute
+tap_up,1,47,1,1,0,0,0,absolute
+tap_down,1,48,1,1,0,0,0,absolute
+tap_blocked,1,49,1,1,0,0,0,absolute
+tap_remote,1,50,1,1,0,0,0,absolute
+bus_coupler_closed,1,51,1,1,0,0,0,absolute
+bus_coupler_open,1,52,1,1,0,0,0,absolute
+bus_transfer,1,53,1,1,0,0,0,absolute
+parallel_run,1,54,1,1,0,0,0,absolute
+anti_pumping,1,55,1,1,0,0,0,absolute
+breaker_test,1,56,1,1,0,0,0,absolute
+sync_check_ok,1,57,1,1,0,0,0,absolute
+dead_bus,1,58,1,1,0,0,0,absolute
+live_bus,1,59,1,1,0,0,0,absolute
+metering_ok,1,60,1,1,0,0,0,absolute
+demand_period,1,61,1,1,0,0,0,absolute
+time_sync_ok,1,62,1,1,0,0,0,absolute
+irig_b_ok,1,63,1,1,0,0,0,absolute
+gps_lock,1,64,1,1,0,0,0,absolute
+event_record_full,1,65,1,1,0,0,0,absolute
+voltage_a,1,149,9,1,0,0,0,absolute
+voltage_b,1,150,9,1,0,0,0,absolute
+voltage_c,1,151,9,1,0,0,0,absolute
+current_a,1,152,9,1,0,0,0,absolute
+current_b,1,153,9,1,0,0,0,absolute
+current_c,1,154,9,1,0,0,0,absolute
+active_power_a,1,155,9,1,0,0,0,absolute
+active_power_b,1,156,9,1,0,0,0,absolute
+active_power_c,1,157,9,1,0,0,0,absolute
+reactive_power_a,1,158,9,1,0,0,0,absolute
+reactive_power_b,1,159,9,1,0,0,0,absolute
+reactive_power_c,1,160,9,1,0,0,0,absolute
+frequency,1,161,9,1,0,0,0,absolute
+power_factor,1,162,9,1,0,0,0,absolute
+dc_voltage,1,163,9,1,0,0,0,absolute
+dc_current,1,164,9,1,0,0,0,absolute
+battery_voltage,1,165,9,1,0,0,0,absolute
+temperature_1,1,166,9,1,0,0,0,absolute
+temperature_2,1,167,9,1,0,0,0,absolute
+temperature_3,1,168,9,1,0,0,0,absolute
+transformer_oil_temp,1,169,9,1,0,0,0,absolute
+winding_temp,1,170,9,1,0,0,0,absolute
+ambient_temp,1,171,9,1,0,0,0,absolute
+tap_position,1,172,9,1,0,0,0,absolute
+demand_kw,1,173,9,1,0,0,0,absolute
+demand_kvar,1,174,9,1,0,0,0,absolute
+energy_kwh_export,1,175,9,1,0,0,0,absolute
+energy_kwh_import,1,176,9,1,0,0,0,absolute
+energy_kvarh,1,177,9,1,0,0,0,absolute
+reactive_energy,1,178,9,1,0,0,0,absolute
+max_demand,1,179,9,1,0,0,0,absolute
+load_pct,1,180,9,1,0,0,0,absolute
+vibration_level,1,181,9,1,0,0,0,absolute
+pressure_level,1,182,9,1,0,0,0,absolute
+flow_rate,1,183,9,1,0,0,0,absolute
+humidity,1,184,9,1,0,0,0,absolute
+gas_density,1,185,9,1,0,0,0,absolute
+sf6_pressure,1,186,9,1,0,0,0,absolute
+battery_current,1,187,9,1,0,0,0,absolute
+station_battery_v,1,188,9,1,0,0,0,absolute
+station_temp,1,189,9,1,0,0,0,absolute
+cabinet_temp,1,190,9,1,0,0,0,absolute
+door_status_a,1,191,9,1,0,0,0,absolute
+door_status_b,1,192,9,1,0,0,0,absolute
+breaker_count,1,193,9,1,0,0,0,absolute
+fault_count,1,194,9,1,0,0,0,absolute
+prealarm_count,1,195,9,1,0,0,0,absolute
+alarm_count,1,196,9,1,0,0,0,absolute
+trip_count,1,197,9,1,0,0,0,absolute
+auto_reclose_count,1,198,9,1,0,0,0,absolute
+manual_close_count,1,199,9,1,0,0,0,absolute
+manual_open_count,1,200,9,1,0,0,0,absolute
+load_current_max,1,201,9,1,0,0,0,absolute
+load_current_avg,1,202,9,1,0,0,0,absolute
+load_current_min,1,203,9,1,0,0,0,absolute
+reactive_max,1,204,9,1,0,0,0,absolute
+reactive_avg,1,205,9,1,0,0,0,absolute
+reactive_min,1,206,9,1,0,0,0,absolute
+voltage_max,1,207,9,1,0,0,0,absolute
+voltage_avg,1,208,9,1,0,0,0,absolute
+voltage_min,1,209,9,1,0,0,0,absolute
+current_max,1,210,9,1,0,0,0,absolute
+current_avg,1,211,9,1,0,0,0,absolute
+current_min,1,212,9,1,0,0,0,absolute
+active_power_total,1,213,9,1,0,0,0,absolute
+reactive_power_total,1,214,9,1,0,0,0,absolute
+apparent_power_total,1,215,9,1,0,0,0,absolute
+pf_a,1,216,9,1,0,0,0,absolute
+pf_b,1,217,9,1,0,0,0,absolute
+pf_c,1,218,9,1,0,0,0,absolute
+vab,1,219,9,1,0,0,0,absolute
+vbc,1,220,9,1,0,0,0,absolute
+vca,1,221,9,1,0,0,0,absolute
+ia,1,222,9,1,0,0,0,absolute
+ib,1,223,9,1,0,0,0,absolute
+ic,1,224,9,1,0,0,0,absolute
+ian,1,225,9,1,0,0,0,absolute
+ibn,1,226,9,1,0,0,0,absolute
+icn,1,227,9,1,0,0,0,absolute
+active_power_phase_a,1,228,9,1,0,0,0,absolute
+active_power_phase_b,1,229,9,1,0,0,0,absolute
+active_power_phase_c,1,230,9,1,0,0,0,absolute
+reactive_phase_a,1,231,9,1,0,0,0,absolute
+reactive_phase_b,1,232,9,1,0,0,0,absolute
+reactive_phase_c,1,233,9,1,0,0,0,absolute
+freq_max,1,234,9,1,0,0,0,absolute
+freq_min,1,235,9,1,0,0,0,absolute
+freq_avg,1,236,9,1,0,0,0,absolute
+thd_v_a,1,237,9,1,0,0,0,absolute
+thd_v_b,1,238,9,1,0,0,0,absolute
+thd_v_c,1,239,9,1,0,0,0,absolute
+thd_i_a,1,240,9,1,0,0,0,absolute
+thd_i_b,1,241,9,1,0,0,0,absolute
+thd_i_c,1,242,9,1,0,0,0,absolute
+unbalance_v,1,243,9,1,0,0,0,absolute
+unbalance_i,1,244,9,1,0,0,0,absolute
