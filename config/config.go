@@ -90,6 +90,10 @@ type ModbusDriverConfig struct {
 	MaxRetryInterval time.Duration `yaml:"max_retry_interval" json:"max_retry_interval" default:"60s"`
 	// PollInterval 默认采集轮询间隔（CSV中未指定Interval时使用）
 	PollInterval time.Duration `yaml:"poll_interval" json:"poll_interval" default:"1s"`
+	// MaxRegistersPerRequest 单次请求最大读取寄存器数（老旧PLC可能需要减小此值）
+	MaxRegistersPerRequest uint16 `yaml:"max_registers_per_request" json:"max_registers_per_request" default:"100"`
+	// AddressOffset 全局地址偏移量，实际地址 = CSV地址 + 此值（用于兼容不同PLC的地址体系）
+	AddressOffset uint16 `yaml:"address_offset" json:"address_offset" default:"0"`
 }
 
 // IEC104DriverConfig IEC104 驱动配置

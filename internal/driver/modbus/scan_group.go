@@ -36,6 +36,7 @@ type scanGroupWorker struct {
 	client *modbus.ModbusClient
 	bus    *broker.Bus
 	ticker *time.Ticker
+	stopCh <-chan struct{} // 外部停止信号，比 ctx 更早触发
 }
 
 // newScanGroup 创建采集组
@@ -75,6 +76,9 @@ func (w *scanGroupWorker) run(ctx context.Context) {
 
 	for {
 		select {
+		case <-w.stopCh:
+			w.group.logger.Info("采集组协程退出（外部停止信号）")
+			return
 		case <-ctx.Done():
 			w.group.logger.Info("采集组协程退出（ctx 取消）")
 			return
@@ -215,6 +219,7 @@ type ScanGroupManager struct {
 	logger      *zap.Logger
 	mu          sync.RWMutex
 	maxRegs     uint16 // 单次请求最大读取寄存器数
+	stopChan    chan struct{}
 }
 
 // NewScanGroupManager 创建采集组管理器
@@ -223,6 +228,7 @@ func NewScanGroupManager(logger *zap.Logger, maxRegs uint16) *ScanGroupManager {
 		groups:  make([]*ScanGroup, 0),
 		logger:  logger,
 		maxRegs: maxRegs,
+		stopChan: make(chan struct{}),
 	}
 }
 
@@ -260,13 +266,17 @@ func (m *ScanGroupManager) Start(ctx context.Context, client *modbus.ModbusClien
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// 重置 stopChan（可能上次 Stop 后被关闭）
+	m.stopChan = make(chan struct{})
+
 	m.groupWorkers = make([]*scanGroupWorker, len(m.groups))
 	for i, g := range m.groups {
 		m.groupWorkers[i] = &scanGroupWorker{
-			group:  g,
-			client: client,
-			bus:    bus,
-			ticker: time.NewTicker(g.interval),
+			group:   g,
+			client:  client,
+			bus:     bus,
+			ticker:  time.NewTicker(g.interval),
+			stopCh:  m.stopChan,
 		}
 		g.start(ctx, client, bus)
 	}
@@ -274,10 +284,15 @@ func (m *ScanGroupManager) Start(ctx context.Context, client *modbus.ModbusClien
 	m.logger.Info("所有采集组已启动", zap.Int("groups", len(m.groups)))
 }
 
-// Stop 停止所有采集组
+// Stop 停止所有采集组（立即通知退出）
 func (m *ScanGroupManager) Stop() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// 关闭 stopChan，通知所有 goroutine 立即退出
+	if m.stopChan != nil {
+		close(m.stopChan)
+	}
 
 	for _, worker := range m.groupWorkers {
 		if worker.ticker != nil {
