@@ -32,7 +32,8 @@ type ScanGroup struct {
 
 // scanGroupWorker 采集组工作协程
 type scanGroupWorker struct {
-	group  *ScanGroup
+	group *ScanGroup
+	mgr   *ScanGroupManager // 管理器引用，用于报告错误
 	client *modbus.ModbusClient
 	bus    *broker.Bus
 	ticker *time.Ticker
@@ -86,7 +87,9 @@ func (w *scanGroupWorker) run(ctx context.Context) {
 			if err := w.poll(); err != nil {
 				atomic.AddUint64(&w.group.errCount, 1)
 				w.group.logger.Error("采集出错", zap.Error(err))
-				// 采集组出错不会触发重连，重连由外层控制
+				// 通知管理器连接错误（用于触发快速重连）
+				w.mgr.ReportConnError(err)
+				// 采集组出错后继续运行，等待外部停止信号
 			} else {
 				atomic.AddUint64(&w.group.pollCount, 1)
 			}
@@ -214,12 +217,13 @@ func (w *scanGroupWorker) readBitBlock(blk *ReadBlock, ts int64) error {
 
 // ScanGroupManager 采集组管理器，管理多个不同采集间隔的采集组
 type ScanGroupManager struct {
-	groups      []*ScanGroup
-	groupWorkers []*scanGroupWorker
-	logger      *zap.Logger
-	mu          sync.RWMutex
-	maxRegs     uint16 // 单次请求最大读取寄存器数
-	stopChan    chan struct{}
+	groups          []*ScanGroup
+	groupWorkers    []*scanGroupWorker
+	logger          *zap.Logger
+	mu              sync.RWMutex
+	maxRegs         uint16 // 单次请求最大读取寄存器数
+	stopChan        chan struct{}
+	connErrorHandler func(error) // 连接错误回调
 }
 
 // NewScanGroupManager 创建采集组管理器
@@ -272,11 +276,12 @@ func (m *ScanGroupManager) Start(ctx context.Context, client *modbus.ModbusClien
 	m.groupWorkers = make([]*scanGroupWorker, len(m.groups))
 	for i, g := range m.groups {
 		m.groupWorkers[i] = &scanGroupWorker{
-			group:   g,
-			client:  client,
-			bus:     bus,
-			ticker:  time.NewTicker(g.interval),
-			stopCh:  m.stopChan,
+			group:  g,
+			mgr:    m, // 传递管理器引用
+			client: client,
+			bus:    bus,
+			ticker: time.NewTicker(g.interval),
+			stopCh: m.stopChan,
 		}
 		g.start(ctx, client, bus)
 	}
@@ -326,4 +331,23 @@ type ScanGroupStats struct {
 	PointCount int
 	PollCount  uint64
 	ErrCount   uint64
+}
+
+// SetConnErrorHandler 设置连接错误回调
+// 当采集出错时，采集组会调用此回调通知管理器
+func (m *ScanGroupManager) SetConnErrorHandler(handler func(error)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.connErrorHandler = handler
+}
+
+// ReportConnError 报告连接错误（供采集组 worker 调用）
+// 调用此方法后，waitForDisconnect 会立即检测到错误并触发重连
+func (m *ScanGroupManager) ReportConnError(err error) {
+	m.mu.RLock()
+	handler := m.connErrorHandler
+	m.mu.RUnlock()
+	if handler != nil {
+		handler(err)
+	}
 }

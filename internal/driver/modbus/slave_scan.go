@@ -29,6 +29,38 @@ type SlaveScanWorker struct {
 	reconnCount uint64
 	pollCount   uint64
 	errCount    uint64
+
+	// 连接状态（用于快速检测断开）
+	connErr atomic.Value // 存储 error，实现了 error 接口的 struct
+}
+
+// connErrorFlag 连接错误标志
+type connErrorFlag struct {
+	err error
+}
+
+func (e *connErrorFlag) Error() string {
+	if e.err != nil {
+		return e.err.Error()
+	}
+	return ""
+}
+
+func (w *SlaveScanWorker) setConnError(err error) {
+	w.connErr.Store(&connErrorFlag{err: err})
+}
+
+func (w *SlaveScanWorker) getConnError() error {
+	if v := w.connErr.Load(); v != nil {
+		if cf, ok := v.(*connErrorFlag); ok {
+			return cf.err
+		}
+	}
+	return nil
+}
+
+func (w *SlaveScanWorker) clearConnError() {
+	w.connErr.Store(&connErrorFlag{err: nil})
 }
 
 // NewSlaveScanWorker 创建支持分频采集的Slave采集协程
@@ -96,6 +128,9 @@ func (w *SlaveScanWorker) run(ctx context.Context, bus *broker.Bus) {
 		default:
 		}
 
+		// 清空连接错误状态
+		w.clearConnError()
+
 		// 建立连接
 		client, err := w.connect(ctx)
 		if err != nil {
@@ -107,6 +142,11 @@ func (w *SlaveScanWorker) run(ctx context.Context, bus *broker.Bus) {
 		atomic.AddUint64(&w.reconnCount, 1)
 		backoff.Reset() // 连接成功后重置退避
 
+		// 注册连接错误回调（采集出错时记录）
+		w.scanGroupManager.SetConnErrorHandler(func(err error) {
+			w.setConnError(err)
+		})
+
 		// 启动所有采集组
 		w.scanGroupManager.Start(ctx, client, bus)
 
@@ -115,6 +155,9 @@ func (w *SlaveScanWorker) run(ctx context.Context, bus *broker.Bus) {
 
 		// 连接断开/停止请求，停止所有采集组
 		w.scanGroupManager.Stop()
+
+		// 检查是否由连接错误触发重连
+		connErr := w.getConnError()
 
 		// 对所有测点发布 QualityNotConnected 质量戳
 		w.publishDisconnected(bus)
@@ -129,10 +172,18 @@ func (w *SlaveScanWorker) run(ctx context.Context, bus *broker.Bus) {
 		// 等待退避时间后重连
 		delay := backoff.Next()
 		totalErrCount := atomic.LoadUint64(&w.errCount)
-		w.logger.Warn("连接断开，等待重连",
-			zap.Duration("backoff", delay),
-			zap.Uint64("err_count", totalErrCount),
-		)
+		if connErr != nil {
+			w.logger.Warn("连接断开（采集错误），等待重连",
+				zap.Duration("backoff", delay),
+				zap.Uint64("err_count", totalErrCount),
+				zap.Error(connErr),
+			)
+		} else {
+			w.logger.Warn("连接断开，等待重连",
+				zap.Duration("backoff", delay),
+				zap.Uint64("err_count", totalErrCount),
+			)
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -178,23 +229,28 @@ func (w *SlaveScanWorker) connect(ctx context.Context) (*modbus.ModbusClient, er
 }
 
 // waitForDisconnect 等待连接断开或 ctx 取消
-// 使用较短的检测间隔来快速感知连接断开
+// 优先检查连接错误（采集出错时立即触发），辅以定期心跳检测
 func (w *SlaveScanWorker) waitForDisconnect(client *modbus.ModbusClient, ctx context.Context) {
-	// 使用 1 秒检测间隔（比原来的 5 秒更及时）
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+	// 心跳检测间隔
+	heartbeatTicker := time.NewTicker(500 * time.Millisecond)
+	defer heartbeatTicker.Stop()
 
 	for {
+		// 快速检查连接错误标志（采集出错时立即触发重连）
+		if err := w.getConnError(); err != nil {
+			w.logger.Warn("检测到连接错误，触发重连", zap.Error(err))
+			return
+		}
+
+		// 同时监听 ctx 和心跳
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			// 尝试读取一个寄存器来检测连接状态
+		case <-heartbeatTicker.C:
 			_, err := client.ReadRegisters(0, 1, modbus.HOLDING_REGISTER)
 			if err != nil {
-				w.logger.Warn("检测到连接断开", zap.Error(err))
-				atomic.AddUint64(&w.errCount, 1)
-				_ = client.Close()
+				w.logger.Warn("心跳检测失败，触发重连", zap.Error(err))
+				w.setConnError(err)
 				return
 			}
 		}
