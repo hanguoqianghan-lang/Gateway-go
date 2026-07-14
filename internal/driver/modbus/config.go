@@ -70,6 +70,10 @@ type PointConfig struct {
 	Scale float64 `json:"scale" yaml:"scale"`
 	// Offset 线性偏移
 	Offset float64 `json:"offset" yaml:"offset"`
+	// Interval 测点采集间隔（仅在分频采集模式下生效）
+	// 如果 > 0，则该测点使用此间隔而非默认的 PollInterval
+	// 如果 = 0，则使用 SlaveConfig.PollInterval
+	Interval time.Duration `json:"interval" yaml:"interval"`
 }
 
 // SlaveConfig 单个 Modbus TCP Slave（设备）配置

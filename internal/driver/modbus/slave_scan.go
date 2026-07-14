@@ -27,6 +27,8 @@ type SlaveScanWorker struct {
 
 	// 运行时统计
 	reconnCount uint64
+	pollCount   uint64
+	errCount    uint64
 }
 
 // NewSlaveScanWorker 创建支持分频采集的Slave采集协程
@@ -79,7 +81,9 @@ func (w *SlaveScanWorker) BuildScanGroups() {
 
 // run 是该 Slave 的主协程，ctx 取消时退出
 func (w *SlaveScanWorker) run(ctx context.Context, bus *broker.Bus) {
-	w.logger.Info("Slave采集协程启动（支持分频采集）")
+	w.logger.Info("Slave采集协程启动（支持分频采集）",
+		zap.Int("scan_groups", len(w.scanGroupManager.groups)),
+	)
 
 	backoff := newExponentialBackoff(time.Second, w.cfg.MaxRetryInterval)
 
@@ -106,22 +110,28 @@ func (w *SlaveScanWorker) run(ctx context.Context, bus *broker.Bus) {
 		// 启动所有采集组
 		w.scanGroupManager.Start(ctx, client, bus)
 
-		// 等待连接断开（这里简化处理，实际应该监听连接状态）
-		// 由于scanGroupManager不会主动停止，我们需要通过其他方式检测断线
-		// 这里使用一个简单的轮询机制来检测连接状态
+		// 等待连接断开或 ctx 取消
 		w.waitForDisconnect(client, ctx)
 
-		// 连接断开，停止所有采集组
+		// 连接断开/停止请求，停止所有采集组
 		w.scanGroupManager.Stop()
 
 		// 对所有测点发布 QualityNotConnected 质量戳
 		w.publishDisconnected(bus)
 
+		// 检查是否由 ctx 取消触发的退出
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		// 等待退避时间后重连
 		delay := backoff.Next()
+		totalErrCount := atomic.LoadUint64(&w.errCount)
 		w.logger.Warn("连接断开，等待重连",
 			zap.Duration("backoff", delay),
-			zap.Uint64("err_count", w.scanGroupManager.groups[0].errCount),
+			zap.Uint64("err_count", totalErrCount),
 		)
 		select {
 		case <-ctx.Done():
@@ -167,10 +177,11 @@ func (w *SlaveScanWorker) connect(ctx context.Context) (*modbus.ModbusClient, er
 	}
 }
 
-// waitForDisconnect 等待连接断开
+// waitForDisconnect 等待连接断开或 ctx 取消
+// 使用较短的检测间隔来快速感知连接断开
 func (w *SlaveScanWorker) waitForDisconnect(client *modbus.ModbusClient, ctx context.Context) {
-	// 简化实现：定期检测连接状态
-	ticker := time.NewTicker(5 * time.Second)
+	// 使用 1 秒检测间隔（比原来的 5 秒更及时）
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -182,6 +193,7 @@ func (w *SlaveScanWorker) waitForDisconnect(client *modbus.ModbusClient, ctx con
 			_, err := client.ReadRegisters(0, 1, modbus.HOLDING_REGISTER)
 			if err != nil {
 				w.logger.Warn("检测到连接断开", zap.Error(err))
+				atomic.AddUint64(&w.errCount, 1)
 				_ = client.Close()
 				return
 			}
@@ -204,23 +216,23 @@ func (w *SlaveScanWorker) publishDisconnected(bus *broker.Bus) {
 
 // Stats 返回统计信息
 func (w *SlaveScanWorker) Stats() SlaveScanStats {
-	totalPollCount := uint64(0)
-	totalErrCount := uint64(0)
+	scanStats := SlaveScanStats{
+		SlaveID:     w.cfg.ID,
+		PollCount:   atomic.LoadUint64(&w.pollCount),
+		ErrCount:    atomic.LoadUint64(&w.errCount),
+		ReconnCount: atomic.LoadUint64(&w.reconnCount),
+	}
 
 	if w.scanGroupManager != nil {
-		for _, stats := range w.scanGroupManager.Stats() {
-			totalPollCount += stats.PollCount
-			totalErrCount += stats.ErrCount
+		scanStats.GroupStats = w.scanGroupManager.Stats()
+		// 累加采集组的统计
+		for _, gs := range scanStats.GroupStats {
+			scanStats.PollCount += gs.PollCount
+			scanStats.ErrCount += gs.ErrCount
 		}
 	}
 
-	return SlaveScanStats{
-		SlaveID:     w.cfg.ID,
-		PollCount:   totalPollCount,
-		ErrCount:    totalErrCount,
-		ReconnCount: atomic.LoadUint64(&w.reconnCount),
-		GroupStats:  w.scanGroupManager.Stats(),
-	}
+	return scanStats
 }
 
 // SlaveScanStats Slave统计信息

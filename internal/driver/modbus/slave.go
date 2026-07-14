@@ -362,12 +362,10 @@ func parseRegisters(regs []uint16, dt DataType, byteOrder string, bitPos int) (f
 		if len(regs) < 4 {
 			return 0, fmt.Errorf("Float64 需要 4 个寄存器，实际 %d", len(regs))
 		}
-		b := make([]byte, 8)
-		for i := 0; i < 4; i++ {
-			binary.BigEndian.PutUint16(b[i*2:i*2+2], regs[i])
+		rawVal, err = parseFloat64(regs, byteOrder)
+		if err != nil {
+			return 0, err
 		}
-		bits := binary.BigEndian.Uint64(b)
-		rawVal = math.Float64frombits(bits)
 
 	case Bool:
 		rawVal = float64(regs[0] & 0x0001)
@@ -390,7 +388,7 @@ func parseRegisters(regs []uint16, dt DataType, byteOrder string, bitPos int) (f
 // parseFloat32 解析float32,支持扩展字节序
 func parseFloat32(regs []uint16, byteOrder string) (float64, error) {
 	b := make([]byte, 4)
-	
+
 	switch byteOrder {
 	case "big", "ABCD":
 		// 标准大端: AB CD EF GH
@@ -398,14 +396,14 @@ func parseFloat32(regs []uint16, byteOrder string) (float64, error) {
 		binary.BigEndian.PutUint16(b[2:4], regs[1])
 		bits := binary.BigEndian.Uint32(b)
 		return float64(math.Float32frombits(bits)), nil
-		
+
 	case "little", "DCBA":
 		// 标准小端: DC BA HG FE (但在寄存器中是 BA DC FE HG)
 		binary.LittleEndian.PutUint16(b[0:2], regs[0])
 		binary.LittleEndian.PutUint16(b[2:4], regs[1])
 		bits := binary.LittleEndian.Uint32(b)
 		return float64(math.Float32frombits(bits)), nil
-		
+
 	case "CDAB":
 		// 字交换: CD AB GH EF
 		// regs[0] = CD AB, regs[1] = GH EF
@@ -416,7 +414,7 @@ func parseFloat32(regs []uint16, byteOrder string) (float64, error) {
 		b[3] = byte(regs[1] & 0xFF) // EF
 		bits := binary.BigEndian.Uint32(b)
 		return float64(math.Float32frombits(bits)), nil
-		
+
 	case "BADC":
 		// 字节交换: BA DC FE HG
 		// regs[0] = AB CD, regs[1] = EF GH
@@ -427,13 +425,73 @@ func parseFloat32(regs []uint16, byteOrder string) (float64, error) {
 		b[3] = byte(regs[1] >> 8)   // EF -> FE
 		bits := binary.BigEndian.Uint32(b)
 		return float64(math.Float32frombits(bits)), nil
-		
+
 	default:
 		// 默认大端
 		binary.BigEndian.PutUint16(b[0:2], regs[0])
 		binary.BigEndian.PutUint16(b[2:4], regs[1])
 		bits := binary.BigEndian.Uint32(b)
 		return float64(math.Float32frombits(bits)), nil
+	}
+}
+
+// parseFloat64 解析float64，支持扩展字节序
+func parseFloat64(regs []uint16, byteOrder string) (float64, error) {
+	b := make([]byte, 8)
+
+	switch byteOrder {
+	case "big", "ABCD":
+		// 标准大端: AB CD EF GH IJ KL MN OP
+		binary.BigEndian.PutUint16(b[0:2], regs[0])
+		binary.BigEndian.PutUint16(b[2:4], regs[1])
+		binary.BigEndian.PutUint16(b[4:6], regs[2])
+		binary.BigEndian.PutUint16(b[6:8], regs[3])
+		bits := binary.BigEndian.Uint64(b)
+		return math.Float64frombits(bits), nil
+
+	case "little", "DCBA":
+		// 标准小端
+		binary.LittleEndian.PutUint16(b[0:2], regs[0])
+		binary.LittleEndian.PutUint16(b[2:4], regs[1])
+		binary.LittleEndian.PutUint16(b[4:6], regs[2])
+		binary.LittleEndian.PutUint16(b[6:8], regs[3])
+		bits := binary.LittleEndian.Uint64(b)
+		return math.Float64frombits(bits), nil
+
+	case "CDAB":
+		// 字交换: CD AB GH EF KL IJ OP MN
+		b[0] = byte(regs[0] >> 8)
+		b[1] = byte(regs[0] & 0xFF)
+		b[2] = byte(regs[1] >> 8)
+		b[3] = byte(regs[1] & 0xFF)
+		b[4] = byte(regs[2] >> 8)
+		b[5] = byte(regs[2] & 0xFF)
+		b[6] = byte(regs[3] >> 8)
+		b[7] = byte(regs[3] & 0xFF)
+		bits := binary.BigEndian.Uint64(b)
+		return math.Float64frombits(bits), nil
+
+	case "BADC":
+		// 字节交换: BA DC FE HG LK JI PM NO
+		b[0] = byte(regs[0] & 0xFF)
+		b[1] = byte(regs[0] >> 8)
+		b[2] = byte(regs[1] & 0xFF)
+		b[3] = byte(regs[1] >> 8)
+		b[4] = byte(regs[2] & 0xFF)
+		b[5] = byte(regs[2] >> 8)
+		b[6] = byte(regs[3] & 0xFF)
+		b[7] = byte(regs[3] >> 8)
+		bits := binary.BigEndian.Uint64(b)
+		return math.Float64frombits(bits), nil
+
+	default:
+		// 默认大端
+		binary.BigEndian.PutUint16(b[0:2], regs[0])
+		binary.BigEndian.PutUint16(b[2:4], regs[1])
+		binary.BigEndian.PutUint16(b[4:6], regs[2])
+		binary.BigEndian.PutUint16(b[6:8], regs[3])
+		bits := binary.BigEndian.Uint64(b)
+		return math.Float64frombits(bits), nil
 	}
 }
 
