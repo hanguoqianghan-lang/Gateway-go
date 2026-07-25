@@ -9,7 +9,7 @@ gateway:
   # 日志文件路径（可选，未配置则输出到控制台）
   log_path: "./logs/gateway.log"
   # 日志级别：debug, info, warn, error
-  log_level: "debug"
+  log_level: "warn"
   # 日志文件最大大小（MB）
   log_max_size: 10
   # 日志文件最大备份数
@@ -79,7 +79,7 @@ drivers:
   # Modbus Slave 5 驱动（示例配置）
   - id: "modbus-slave5-01"
     type: "modbus_tcp"
-    enabled: true
+    enabled: false
     name: "modbus-slave5"
     point_file: "./points/modbus-slave5.csv"
 
@@ -108,6 +108,26 @@ drivers:
       clock_sync_interval: 1h
       gi_staggered_delay: 30s
       enable_system_metrics: true
+      asdu_buffer_size: 100000
+
+  # IEC104 驱动
+  - id: "iec104-test-02"
+    type: "iec104"
+    enabled: true
+    name: "iec104-test-02"
+    point_file: "./points/iec104-test2.csv"
+
+    iec104:
+      host: "127.0.0.1"
+      port: 2404
+      common_address: 1
+      timeout: 10s
+      reconnect_interval: 5s
+      gi_interval: 15m
+      clock_sync_interval: 1h
+      gi_staggered_delay: 30s
+      enable_system_metrics: false
+      asdu_buffer_size: 100000
 
   # IEC101 驱动（演示：Transport=tcp 接 mocksvr-iec101:8881，不走真串口）
   # 如果接真子站，把 transport 改 serial，并填 serial_port + 串口参数。

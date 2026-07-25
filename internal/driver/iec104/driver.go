@@ -82,6 +82,9 @@ type Driver struct {
 	asduChan     chan *asdu.ASDU
 	asduWorkerWg sync.WaitGroup
 
+	// 缓冲区统计（原子操作）
+	asduDroppedCount uint64 // 丢弃的ASDU数量（缓冲区满时）
+
 	// GI防风暴
 	giStaggeredDelay time.Duration
 }
@@ -94,7 +97,7 @@ func New(cfg Config, logger *zap.Logger) *Driver {
 		logger:          logger.With(zap.String("driver", "iec104")),
 		pointMap:        make(map[uint32]*pointMapping),
 		asduWorkers:     10,
-		asduChan:        make(chan *asdu.ASDU, 5000), // 大缓冲区防止GI风暴阻塞
+		asduChan:        make(chan *asdu.ASDU, cfg.ASDUBufferSize), // 可配置缓冲区大小
 		giStaggeredDelay: cfg.GIStaggeredDelay,
 	}
 }
@@ -648,6 +651,12 @@ func (d *Driver) sendGeneralInterrogation() error {
 		return nil
 	}
 
+	// 使用 IEC104 库自身的连接状态检查（比 isConnected 标志更准确）
+	if !d.client.IsConnected() {
+		d.logger.Debug("IEC104 客户端未连接，跳过总召唤")
+		return nil
+	}
+
 	if err := d.client.SendInterrogationCmd(uint16(d.cfg.CommonAddress)); err != nil {
 		d.logger.Error("发送总召唤命令失败", zap.Error(err))
 		atomic.AddUint64(&d.atomicStats.errCount, 1)
@@ -669,6 +678,12 @@ func (d *Driver) sendGeneralInterrogation() error {
 func (d *Driver) sendClockSync() error {
 	if d.client == nil {
 		d.logger.Warn("IEC104 客户端未初始化，无法发送时钟同步命令")
+		return nil
+	}
+
+	// 使用 IEC104 库自身的连接状态检查
+	if !d.client.IsConnected() {
+		d.logger.Debug("IEC104 客户端未连接，跳过时钟同步")
 		return nil
 	}
 
@@ -791,8 +806,8 @@ func (d *Driver) publishSystemMetrics() {
 }
 
 // Stats 返回运行统计信息
-func (d *Driver) Stats() map[string]interface{} {
-	return map[string]interface{}{
+func (d *Driver) Stats() map[string]any {
+	return map[string]any{
 		"poll_count":           atomic.LoadUint64(&d.atomicStats.pollCount),
 		"err_count":            atomic.LoadUint64(&d.atomicStats.errCount),
 		"gi_count":             atomic.LoadUint64(&d.atomicStats.giCount),
@@ -861,5 +876,20 @@ func (h *iec104Handler) OnASDU(packet *asdu.ASDU) error {
 		return nil
 	case <-h.driver.ctx.Done():
 		return h.driver.ctx.Err()
+	default:
+		// 缓冲区满，记录警告（使用原子操作统计丢弃数量）
+		atomic.AddUint64(&h.driver.asduDroppedCount, 1)
+
+		// 只在缓冲区接近满时记录警告（避免日志过多）
+		bufLen := len(h.driver.asduChan)
+		bufCap := cap(h.driver.asduChan)
+		if bufLen >= bufCap-100 { // 距离满还有100时开始报警
+			h.driver.logger.Warn("ASDU缓冲区满，数据被丢弃",
+				zap.Int("buffer_used", bufLen),
+				zap.Int("buffer_capacity", bufCap),
+				zap.Uint64("dropped_total", atomic.LoadUint64(&h.driver.asduDroppedCount)),
+			)
+		}
+		return nil
 	}
 }

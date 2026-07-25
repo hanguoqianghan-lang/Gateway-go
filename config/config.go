@@ -117,6 +117,8 @@ type IEC104DriverConfig struct {
 	GIStaggeredDelay time.Duration `yaml:"gi_staggered_delay" json:"gi_staggered_delay" default:"5s"`
 	// EnableSystemMetrics 是否启用系统测点
 	EnableSystemMetrics bool `yaml:"enable_system_metrics" json:"enable_system_metrics" default:"false"`
+	// ASDUBufferSize ASDU 处理缓冲区大小（默认 50000），支持百万级测点
+	ASDUBufferSize int `yaml:"asdu_buffer_size" json:"asdu_buffer_size" default:"50000"`
 }
 
 // IEC101DriverConfig IEC101 驱动配置

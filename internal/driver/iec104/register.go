@@ -36,7 +36,7 @@ type iec104PointCSV struct {
 // 此函数注册到驱动工厂，由工厂统一调用
 func NewIEC104DriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, logger *zap.Logger) (driver.Driver, error) {
 	// 解析点表文件
-	points, err := parseIEC104CSV(drvCfg.PointFile, logger)
+	points, err := parseIEC104CSV(drvCfg.PointFile)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +64,7 @@ func NewIEC104DriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, 
 		ClockSyncInterval:   drvCfg.IEC104.ClockSyncInterval,
 		GIStaggeredDelay:    drvCfg.IEC104.GIStaggeredDelay,
 		EnableSystemMetrics: drvCfg.IEC104.EnableSystemMetrics,
+		ASDUBufferSize:      drvCfg.IEC104.ASDUBufferSize,
 	}
 
 	// 创建 IEC104 驱动
@@ -78,7 +79,7 @@ func NewIEC104DriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, 
 }
 
 // parseIEC104CSV 解析 IEC104 CSV 点表文件
-func parseIEC104CSV(filePath string, logger *zap.Logger) ([]iec104PointCSV, error) {
+func parseIEC104CSV(filePath string) ([]iec104PointCSV, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("打开CSV文件失败: %w", err)

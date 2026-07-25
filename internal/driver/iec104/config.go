@@ -177,6 +177,8 @@ type Config struct {
 	ClockSyncInterval time.Duration
 	// EnableSystemMetrics 是否启用系统测点
 	EnableSystemMetrics bool
+	// ASDUBufferSize ASDU 处理缓冲区大小（默认 50000），支持百万级测点
+	ASDUBufferSize int
 	// Points 该设备上需要采集的测点列表
 	Points []PointConfig
 }
@@ -212,6 +214,10 @@ func (c *Config) fillDefaults() {
 	// ClockSyncInterval 默认 30 分钟
 	if c.ClockSyncInterval == 0 {
 		c.ClockSyncInterval = 30 * time.Minute
+	}
+	// ASDUBufferSize 默认 50000，支持大规模测点
+	if c.ASDUBufferSize <= 0 {
+		c.ASDUBufferSize = 50000
 	}
 
 	// 为每个测点填充默认值
