@@ -407,24 +407,25 @@ func parseFloat32(regs []uint16, byteOrder string) (float64, error) {
 		return float64(math.Float32frombits(bits)), nil
 		
 	case "CDAB":
-		// 字交换: CD AB GH EF
-		// regs[0] = CD AB, regs[1] = GH EF
-		// 需要交换每个寄存器内的字节
-		b[0] = byte(regs[0] >> 8)   // CD
-		b[1] = byte(regs[0] & 0xFF) // AB
-		b[2] = byte(regs[1] >> 8)   // GH
-		b[3] = byte(regs[1] & 0xFF) // EF
+		// 寄存器间交换: DCBA -> BADC -> ABCD 转换
+		// 读取顺序: regs[0]=低字, regs[1]=高字 (小端)
+		// 内存排列: [regs[0]低字节][regs[0]高字节][regs[1]低字节][regs[1]高字节]
+		// 需要变成: [regs[1]低字节][regs[1]高字节][regs[0]低字节][regs[0]高字节]
+		b[0] = byte(regs[1] & 0xFF) // regs[1] 低字节
+		b[1] = byte(regs[1] >> 8)   // regs[1] 高字节
+		b[2] = byte(regs[0] & 0xFF) // regs[0] 低字节
+		b[3] = byte(regs[0] >> 8)   // regs[0] 高字节
 		bits := binary.BigEndian.Uint32(b)
 		return float64(math.Float32frombits(bits)), nil
 		
 	case "BADC":
-		// 字节交换: BA DC FE HG
+		// 寄存器内字节交换: CD AB GH EF
 		// regs[0] = AB CD, regs[1] = EF GH
-		// 需要交换每个寄存器内的字节
-		b[0] = byte(regs[0] & 0xFF) // CD -> DC
-		b[1] = byte(regs[0] >> 8)   // AB -> BA
-		b[2] = byte(regs[1] & 0xFF) // GH -> HG
-		b[3] = byte(regs[1] >> 8)   // EF -> FE
+		// 交换每个寄存器内的字节后变成 CD AB GH EF
+		b[0] = byte(regs[0] >> 8)   // AB -> 取高字节
+		b[1] = byte(regs[0] & 0xFF) // CD -> 取低字节
+		b[2] = byte(regs[1] >> 8)   // EF -> 取高字节
+		b[3] = byte(regs[1] & 0xFF) // GH -> 取低字节
 		bits := binary.BigEndian.Uint32(b)
 		return float64(math.Float32frombits(bits)), nil
 		

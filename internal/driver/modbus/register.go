@@ -21,19 +21,21 @@ func init() {
 
 // modbusPointCSV CSV点表定义（内部使用）
 type modbusPointCSV struct {
-	Name       string
-	Address    uint16
-	Type       string
-	DataType   string
-	ByteOrder  string
-	BitPos     int
-	Scale      float64
-	Offset     float64
-	Interval   int
+	Name      string
+	Address   uint16
+	Type      string
+	DataType  string
+	ByteOrder string
+	BitPos    int
+	Scale     float64
+	Offset    float64
+	Interval  int
+	UnitID    uint8
 }
 
 // NewModbusDriverFromConfig 从配置创建 Modbus 驱动实例
 // 此函数注册到驱动工厂，由工厂统一调用
+// 支持点表中不同 UnitID 的测点分配到不同的 Slave
 func NewModbusDriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, logger *zap.Logger) (driver.Driver, error) {
 	// 解析点表文件
 	points, err := parseModbusCSV(drvCfg.PointFile, logger)
@@ -43,27 +45,40 @@ func NewModbusDriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, 
 
 	logger.Info("Modbus点表解析完成", zap.Int("points", len(points)))
 
-	// 转换为 Modbus 配置
-	modbusPoints := make([]PointConfig, 0, len(points))
+	// 按 UnitID 分组
+	unitIDMap := make(map[uint8][]PointConfig)
 	for _, pt := range points {
 		modbusPt := convertModbusPoint(pt)
-		modbusPoints = append(modbusPoints, modbusPt)
+		unitID := uint8(pt.UnitID)
+		if unitID == 0 {
+			unitID = uint8(drvCfg.Modbus.UnitID) // 使用配置文件默认值
+		}
+		unitIDMap[unitID] = append(unitIDMap[unitID], modbusPt)
+	}
+
+	// 为每个 UnitID 创建 Slave
+	slaves := make([]SlaveConfig, 0, len(unitIDMap))
+	for unitID, pts := range unitIDMap {
+		slave := SlaveConfig{
+			ID:               fmt.Sprintf("%s-%d", drvCfg.Name, unitID),
+			Host:             drvCfg.Modbus.Host,
+			Port:             drvCfg.Modbus.Port,
+			UnitID:           unitID,
+			PollInterval:     drvCfg.Modbus.PollInterval,
+			Timeout:          drvCfg.Modbus.Timeout,
+			MaxRetryInterval: drvCfg.Modbus.MaxRetryInterval,
+			Points:           pts,
+		}
+		slaves = append(slaves, slave)
+		logger.Info("创建 Slave",
+			zap.Uint8("unit_id", unitID),
+			zap.Int("points", len(pts)),
+		)
 	}
 
 	// 创建 Modbus 配置
 	modbusCfg := ModbusConfig{
-		Slaves: []SlaveConfig{
-			{
-				ID:               drvCfg.Name,
-				Host:             drvCfg.Modbus.Host,
-				Port:             drvCfg.Modbus.Port,
-				UnitID:           drvCfg.Modbus.UnitID,
-				PollInterval:     drvCfg.Modbus.PollInterval,
-				Timeout:          drvCfg.Modbus.Timeout,
-				MaxRetryInterval: drvCfg.Modbus.MaxRetryInterval,
-				Points:           modbusPoints,
-			},
-		},
+		Slaves: slaves,
 	}
 
 	// 创建 Modbus 驱动
@@ -72,6 +87,7 @@ func NewModbusDriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, 
 	logger.Info("Modbus驱动创建完成",
 		zap.String("host", drvCfg.Modbus.Host),
 		zap.Int("port", drvCfg.Modbus.Port),
+		zap.Int("slaves", len(slaves)),
 	)
 
 	return drv, nil
@@ -218,6 +234,18 @@ func parseModbusLine(record []string, headerMap map[string]int, lineNum int) (mo
 		}
 	} else {
 		point.Interval = 0
+	}
+
+	// UnitID (可选，0表示使用默认值)
+	if idx, ok := headerMap["UnitID"]; ok && idx < len(record) && record[idx] != "" {
+		unitID, err := strconv.ParseUint(record[idx], 10, 8)
+		if err != nil || unitID == 0 {
+			point.UnitID = 0 // 使用默认值
+		} else {
+			point.UnitID = uint8(unitID)
+		}
+	} else {
+		point.UnitID = 0 // 使用默认值
 	}
 
 	return point, nil
