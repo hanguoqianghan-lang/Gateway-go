@@ -1,0 +1,10 @@
+Name,RecordAddr,ChannelIndex,DataType,Scale,Offset,Interval,DeadbandValue,DeadbandType
+energy_pos_t1,11,1,0,0.01,0,0,0.1,absolute
+energy_pos_t2,11,2,0,0.01,0,0,0.1,absolute
+energy_pos_t3,11,3,0,0.01,0,0,0.1,absolute
+energy_pos_t4,11,4,0,0.01,0,0,0.1,absolute
+energy_neg_t1,11,9,1,0.01,0,0,0.1,absolute
+energy_neg_t2,11,10,1,0.01,0,0,0.1,absolute
+energy_comb_t1,11,17,2,0.01,0,0,0.1,absolute
+energy_comb_t2,11,18,2,0.01,0,0,0.1,absolute
+energy_reactive_t1,11,25,3,0.01,0,0,0.1,absolute

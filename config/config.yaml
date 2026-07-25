@@ -23,10 +23,41 @@ gateway:
 
 # 南向驱动配置
 drivers:
+  # DL/T 645 驱动（串口）
+  - id: "dlt645-01"
+    type: "dlt645"
+    enabled: false
+    name: "dlt645-test"
+    point_file: "./points/dlt645_real.csv"
+
+    dlt645:
+      # 串口设备路径（根据实际情况修改）
+      serial_port: "COM4"
+      # 波特率
+      baud_rate: 9600
+      # 数据位
+      data_bits: 8
+      # 停止位
+      stop_bits: 1
+      # 校验位：none, even, odd
+      parity: "even"
+      # 协议版本：1997 或 2007
+      protocol_version: "2007"
+      # 是否使用前导字节（唤醒沉睡电表）
+      use_leading_byte: false
+      # 前导字节数量
+      leading_byte_count: 4
+      # 响应超时
+      response_timeout: 1s
+      # 采集轮询间隔
+      poll_interval: 1s
+      # 每测点查询间隔
+      query_interval_per_point: 50ms
+
   # Modbus TCP 驱动示例
   - id: "modbus-sim-01"
     type: "modbus_tcp"
-    enabled: true
+    enabled: false
     name: "sim-slave"
     # 点表文件路径（CSV格式）
     point_file: "./points/modbus.csv"
@@ -45,10 +76,25 @@ drivers:
       # 默认采集轮询间隔（CSV中未指定Interval时使用）
       poll_interval: 1s
 
+  # Modbus Slave 5 驱动（示例配置）
+  - id: "modbus-slave5-01"
+    type: "modbus_tcp"
+    enabled: true
+    name: "modbus-slave5"
+    point_file: "./points/modbus-slave5.csv"
+
+    modbus:
+      host: "127.0.0.1"
+      port: 512
+      unit_id: 5
+      timeout: 3s
+      max_retry_interval: 60s
+      poll_interval: 1s
+
   # IEC104 驱动
   - id: "iec104-test-01"
     type: "iec104"
-    enabled: true
+    enabled: false
     name: "iec104-test"
     point_file: "./points/iec104.csv"
 
@@ -67,7 +113,7 @@ drivers:
   # 如果接真子站，把 transport 改 serial，并填 serial_port + 串口参数。
   - id: "iec101-mock-01"
     type: "iec101"
-    enabled: true
+    enabled: false
     name: "iec101-test"
     point_file: "./points/iec101.csv"
 
@@ -137,7 +183,7 @@ exporters:
   # IEC104 Server 导出器配置（北向，作为主站）
   iec104_server:
     # 是否启用 IEC104 Server
-    enabled: true
+    enabled: false
     # 监听地址（SCADA 系统连接此地址）
     listen_addr: ":2405"
     # 最大连接数

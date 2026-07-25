@@ -16,10 +16,11 @@ import (
 	cfgloader "github.com/gateway/gateway/internal/config"
 	"github.com/gateway/gateway/internal/broker"
 	"github.com/gateway/gateway/internal/driver"
+	"github.com/gateway/gateway/internal/exporter"
 	// 导入驱动包以触发 init() 注册
+	_ "github.com/gateway/gateway/internal/driver/dlt645"
 	_ "github.com/gateway/gateway/internal/driver/iec104"
 	_ "github.com/gateway/gateway/internal/driver/modbus"
-	"github.com/gateway/gateway/internal/exporter"
 	"go.uber.org/zap"
 )
 

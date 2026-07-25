@@ -1,0 +1,11 @@
+Name,Address,Type,DataType,ByteOrder,Scale,Offset,Interval,UnitID,Description
+float_001,0,holding,float32,ABCD,1,0,1000,1,模拟量1
+float_002,2,holding,float32,ABCD,1,0,1000,1,模拟量2
+float_003,4,holding,float32,ABCD,1,0,1000,1,模拟量3
+float_004,6,holding,float32,ABCD,1,0,1000,1,模拟量4
+float_005,8,holding,float32,ABCD,1,0,1000,1,模拟量5
+float_006,10,holding,float32,ABCD,1,0,1000,1,模拟量6
+float_007,12,holding,float32,ABCD,1,0,1000,1,模拟量7
+float_008,14,holding,float32,ABCD,1,0,1000,1,模拟量8
+float_009,16,holding,float32,ABCD,1,0,1000,1,模拟量9
+float_010,18,holding,float32,ABCD,1,0,1000,1,模拟量10

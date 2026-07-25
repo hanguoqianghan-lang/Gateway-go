@@ -1,0 +1,11 @@
+Name,Address,Type,DataType,ByteOrder,Scale,Offset,Interval,UnitID,Description
+float_001,0,holding,float32,BADC,1,0,1000,1,RTU浮点数1
+float_002,2,holding,float32,BADC,1,0,1000,1,RTU浮点数2
+float_003,4,holding,float32,BADC,1,0,1000,1,RTU浮点数3
+float_004,6,holding,float32,BADC,1,0,1000,1,RTU浮点数4
+float_005,8,holding,float32,BADC,1,0,1000,1,RTU浮点数5
+float_006,10,holding,float32,BADC,1,0,1000,1,RTU浮点数6
+float_007,12,holding,float32,BADC,1,0,1000,1,RTU浮点数7
+float_008,14,holding,float32,BADC,1,0,1000,1,RTU浮点数8
+float_009,16,holding,float32,BADC,1,0,1000,1,RTU浮点数9
+float_010,18,holding,float32,BADC,1,0,1000,1,RTU浮点数10

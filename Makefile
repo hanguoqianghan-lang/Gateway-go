@@ -25,8 +25,8 @@ all: build
 build:
 	@echo ">>> 构建本机二进制..."
 	CGO_ENABLED=0 \
-	go build -trimpath -ldflags "$(LDFLAGS)" -o bin/$(BINARY) $(CMD_PKG)
-	@echo ">>> 输出: bin/$(BINARY)"
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY).exe $(CMD_PKG)
+	@echo ">>> 输出: $(BINARY).exe"
 
 ## build-linux: 构建 Linux AMD64 二进制
 build-linux:
@@ -35,8 +35,8 @@ build-linux:
 	GOOS=linux \
 	GOARCH=amd64 \
 	go build -trimpath -ldflags "$(LDFLAGS)" \
-	         -o bin/$(BINARY)-linux-amd64 $(CMD_PKG)
-	@echo ">>> 输出: bin/$(BINARY)-linux-amd64"
+	         -o $(BINARY)-linux-amd64 $(CMD_PKG)
+	@echo ">>> 输出: $(BINARY)-linux-amd64"
 
 ## build-arm64: 构建 ARM64 二进制（RK3568J / openEuler）
 build-arm64:
@@ -45,8 +45,8 @@ build-arm64:
 	GOOS=linux \
 	GOARCH=arm64 \
 	go build -trimpath -ldflags "$(LDFLAGS)" \
-	         -o bin/$(BINARY)-linux-arm64 $(CMD_PKG)
-	@echo ">>> 输出: bin/$(BINARY)-linux-arm64"
+	         -o $(BINARY)-linux-arm64 $(CMD_PKG)
+	@echo ">>> 输出: $(BINARY)-linux-arm64"
 
 ## build-arm: 构建 ARMv7 二进制
 build-arm:
@@ -56,8 +56,8 @@ build-arm:
 	GOARCH=arm \
 	GOARM=7 \
 	go build -trimpath -ldflags "$(LDFLAGS)" \
-	         -o bin/$(BINARY)-linux-arm $(CMD_PKG)
-	@echo ">>> 输出: bin/$(BINARY)-linux-arm"
+	         -o $(BINARY)-linux-arm $(CMD_PKG)
+	@echo ">>> 输出: $(BINARY)-linux-arm"
 
 ## build-windows: 构建 Windows 二进制
 build-windows:
@@ -66,8 +66,8 @@ build-windows:
 	GOOS=windows \
 	GOARCH=amd64 \
 	go build -trimpath -ldflags "$(LDFLAGS)" \
-	         -o bin/$(BINARY)-windows-amd64.exe $(CMD_PKG)
-	@echo ">>> 输出: bin/$(BINARY)-windows-amd64.exe"
+	         -o $(BINARY).exe $(CMD_PKG)
+	@echo ">>> 输出: $(BINARY).exe"
 
 ## build-all: 构建所有平台二进制
 build-all: build-linux build-arm64 build-arm build-windows
@@ -88,7 +88,7 @@ tidy:
 
 ## clean: 清理编译产物
 clean:
-	rm -rf bin/
+	rm -f $(BINARY).exe $(BINARY)-*.exe $(BINARY)-linux-* $(BINARY)-darwin-*
 
 ## help: 显示此帮助信息
 help:

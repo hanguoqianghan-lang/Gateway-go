@@ -144,6 +144,10 @@ func (l *Loader) validate(cfg *config.AppConfig) error {
 			if drv.Modbus.Port <= 0 || drv.Modbus.Port > 65535 {
 				return fmt.Errorf("drivers[%d].modbus.port 无效: %d", i, drv.Modbus.Port)
 			}
+		case "dlt645":
+			// DL/T 645 驱动仅验证串口配置，其他可选
+		case "iec101", "iec102", "iec103":
+			// IEC101/102/103 驱动暂不验证，让驱动自行处理
 		case "iec104":
 			if drv.IEC104 == nil {
 				return fmt.Errorf("drivers[%d].iec104 配置不能为空", i)
@@ -259,6 +263,31 @@ func (l *Loader) fillDefaults(cfg *config.AppConfig) {
 			}
 			if drv.IEC104.TestInterval == 0 {
 				drv.IEC104.TestInterval = 20 * 1000000000 // 20s
+			}
+		}
+
+		// DL/T 645 默认值
+		if drv.Type == "dlt645" && drv.DLT645 != nil {
+			if drv.DLT645.BaudRate == 0 {
+				drv.DLT645.BaudRate = 9600
+			}
+			if drv.DLT645.DataBits == 0 {
+				drv.DLT645.DataBits = 8
+			}
+			if drv.DLT645.StopBits == 0 {
+				drv.DLT645.StopBits = 1
+			}
+			if drv.DLT645.ResponseTimeout == 0 {
+				drv.DLT645.ResponseTimeout = 1 * 1000000000 // 1s
+			}
+			if drv.DLT645.RetryInterval == 0 {
+				drv.DLT645.RetryInterval = 1 * 1000000000 // 1s
+			}
+			if drv.DLT645.PollInterval == 0 {
+				drv.DLT645.PollInterval = 1 * 1000000000 // 1s
+			}
+			if drv.DLT645.QueryIntervalPerPoint == 0 {
+				drv.DLT645.QueryIntervalPerPoint = 50 * 1000000 // 50ms
 			}
 		}
 	}

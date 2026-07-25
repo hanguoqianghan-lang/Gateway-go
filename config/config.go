@@ -74,6 +74,9 @@ type DriverConfig struct {
 
 	// IEC103 配置（仅当 Type=iec103 时有效）
 	IEC103 *IEC103DriverConfig `yaml:"iec103,omitempty" json:"iec103,omitempty"`
+
+	// DL/T 645 配置（仅当 Type=dlt645 时有效）
+	DLT645 *DLT645DriverConfig `yaml:"dlt645,omitempty" json:"dlt645,omitempty"`
 }
 
 // ModbusDriverConfig Modbus TCP 驱动配置
@@ -216,6 +219,40 @@ type IEC103DriverConfig struct {
 	SOEQueueSize int `yaml:"soe_queue_size" json:"soe_queue_size" default:"10000"`
 	// SOEWorkerCount SOE 处理 Worker 数量
 	SOEWorkerCount int `yaml:"soe_worker_count" json:"soe_worker_count" default:"10"`
+}
+
+// DLT645DriverConfig DL/T 645 驱动配置
+type DLT645DriverConfig struct {
+	// SerialPort 串口设备路径（如 COM3/COM4）
+	SerialPort string `yaml:"serial_port" json:"serial_port"`
+	// BaudRate 波特率
+	BaudRate int `yaml:"baud_rate" json:"baud_rate" default:"9600"`
+	// DataBits 数据位
+	DataBits int `yaml:"data_bits" json:"data_bits" default:"8"`
+	// StopBits 停止位
+	StopBits int `yaml:"stop_bits" json:"stop_bits" default:"1"`
+	// Parity 校验位：none, even, odd
+	Parity string `yaml:"parity" json:"parity" default:"even"`
+	// ProtocolVersion 协议版本：1997 或 2007
+	ProtocolVersion string `yaml:"protocol_version" json:"protocol_version" default:"2007"`
+	// UseLeadingByte 是否使用前导字节（唤醒沉睡电表）
+	UseLeadingByte bool `yaml:"use_leading_byte" json:"use_leading_byte" default:"false"`
+	// LeadingByteCount 前导字节数量
+	LeadingByteCount int `yaml:"leading_byte_count" json:"leading_byte_count" default:"4"`
+	// CharTimeout 字符间超时
+	CharTimeout time.Duration `yaml:"char_timeout" json:"char_timeout" default:"50ms"`
+	// FrameTimeout 帧超时
+	FrameTimeout time.Duration `yaml:"frame_timeout" json:"frame_timeout" default:"200ms"`
+	// ResponseTimeout 响应超时
+	ResponseTimeout time.Duration `yaml:"response_timeout" json:"response_timeout" default:"1s"`
+	// MaxRetry 最大重试次数
+	MaxRetry int `yaml:"max_retry" json:"max_retry" default:"3"`
+	// RetryInterval 重试间隔
+	RetryInterval time.Duration `yaml:"retry_interval" json:"retry_interval" default:"1s"`
+	// PollInterval 采集轮询间隔
+	PollInterval time.Duration `yaml:"poll_interval" json:"poll_interval" default:"1s"`
+	// QueryIntervalPerPoint 每测点查询间隔（加速采集）
+	QueryIntervalPerPoint time.Duration `yaml:"query_interval_per_point" json:"query_interval_per_point" default:"50ms"`
 }
 
 // ExporterConfig 北向导出器配置

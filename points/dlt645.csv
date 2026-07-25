@@ -1,0 +1,43 @@
+# DL/T 645-2007 Point Table File
+# Format: Name,Address,DataID,DataFormat,Scale,Offset,Unit,Precision,Interval,DeadbandValue,DeadbandType
+# Address: 12-digit meter number (BCD), e.g. "123456789012"
+# DataID: Data identifier (2007: 8-digit like "00010000", 1997: 4-digit like "9010")
+# DataFormat: "bcd"(default) or "float"(IEEE 754 big-endian float)
+#
+# DataFormat 说明：
+# - bcd: BCD码格式（标准DL/T 645电能量数据）
+# - float: IEEE 754 大端序浮点数（模拟器浮点数据）
+#
+# Common Data Identifiers (DL/T 645-2007):
+# 00010000 - Current positive active total energy
+# 00020000 - Current reverse active total energy
+# 00030000 - Current positive reactive total energy
+# 00040000 - Current reverse reactive total energy
+# 02010100 - Voltage A (instantaneous)
+# 02010200 - Voltage B (instantaneous)
+# 02010300 - Voltage C (instantaneous)
+# 02020100 - Current A (instantaneous)
+# 02030000 - Active power (instantaneous)
+# 02060000 - Power factor (instantaneous)
+#
+Name,Address,DataID,DataFormat,Scale,Offset,Unit,Precision,Interval,DeadbandValue,DeadbandType
+TAG1,000000000001,00000004,bcd,0.01,0,kWh,2,0,0,absolute
+TAG2,000000000001,00000005,float,1,0,kW,3,0,0,absolute
+TAG3,000000000001,0000000D,float,1,0,A,3,0,0,absolute
+TAG4,000000000001,00000006,float,0.1,0,V,1,0,0,absolute
+TAG5,000000000001,00000008,float,0.1,0,V,1,0,0,absolute
+TAG6,000000000001,0000000C,float,0.1,0,V,1,0,0,absolute
+TAG7,000000000001,00000003,float,1,0,A,3,0,0,absolute
+TAG8,000000000001,00000010,float,1,0,A,3,0,0,absolute
+TAG9,000000000001,0000000F,float,1,0,A,3,0,0,absolute
+TAG10,000000000001,0000000F,bcd,0.01,0,kWh,2,0,0,absolute
+TAG11,000000000001,00000001,bcd,0.01,0,kvarh,2,0,0,absolute
+TAG12,000000000001,00000012,bcd,0.01,0,kWh,2,0,0,absolute
+TAG13,000000000001,00000007,float,1,0,kVar,3,0,0,absolute
+TAG14,000000000001,0000000A,float,0.001,0,,3,0,0,absolute
+TAG15,000000000001,00000011,float,1,0,kVA,3,0,0,absolute
+TAG16,000000000001,00000000,float,1,0,kW,3,0,0,absolute
+TAG17,000000000001,00000009,float,1,0,kW,3,0,0,absolute
+TAG18,000000000001,00000002,float,1,0,kW,3,0,0,absolute
+TAG19,000000000001,0000000E,float,1,0,kVar,3,0,0,absolute
+TAG20,000000000001,00000013,float,1,0,kVA,3,0,0,absolute
