@@ -90,10 +90,13 @@ func (d *Driver) Init(_ context.Context) error {
 			return fmt.Errorf("dlt645: point[%d] invalid dataID %s: %w", i, pt.DataID, err)
 		}
 
-		// 构建键（地址反转以匹配帧格式，DataID 不反转直接拼接）
+		// 构建键（地址保持原始顺序，与帧中一致；DataID 直接拼接）
+		// 注意：帧中地址是低字节在前存储，发送时需要反转（已在 BuildRequest 中处理）
+		// 这里构建的 key 用于匹配 handler.buildKey 的输出格式
+		// 地址需要反转回 CSV 原始格式（高字节在前），DataID 直接拼接
 		addrStr := fmt.Sprintf("%02X%02X%02X%02X%02X%02X",
-			addrBytes[5], addrBytes[4], addrBytes[3],
-			addrBytes[2], addrBytes[1], addrBytes[0])
+			addrBytes[0], addrBytes[1], addrBytes[2],
+			addrBytes[3], addrBytes[4], addrBytes[5])
 		// DataID 直接拼接（低字节在前）
 		dataIDStr := fmt.Sprintf("%02X%02X%02X%02X",
 			dataID[0], dataID[1], dataID[2], dataID[3])

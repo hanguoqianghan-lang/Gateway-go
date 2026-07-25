@@ -135,12 +135,15 @@ func (h *Handler) HandleFrame(frame *Frame) error {
 
 // buildKey 构建点表查找键: 地址_数据标识
 // 帧中地址是低字节在前，需要反转回标准格式与点表匹配
-// 帧中 DataID 是低字节在前，直接使用（与点表格式一致）
+// 帧中 DataID 是低字节在前，与点表格式一致，直接使用
 func (h *Handler) buildKey(addr [6]byte, dataID []byte) string {
 	// 反转地址字节（低字节在前 -> 高字节在前）
+	// frame.Address = [00, 18, 01, 05, 20, 01] -> "001801052001"
 	addrStr := fmt.Sprintf("%02X%02X%02X%02X%02X%02X",
-		addr[5], addr[4], addr[3], addr[2], addr[1], addr[0])
-	// DataID 直接拼接（低字节在前）
+		addr[5], addr[4], addr[3],
+		addr[2], addr[1], addr[0])
+	// DataID 字节顺序与 CSV 中 BCD 格式一致，直接使用（低字节在前）
+	// CSV "00030200" -> BCD [00,03,02,00]
 	dataIDStr := fmt.Sprintf("%02X%02X%02X%02X",
 		dataID[0], dataID[1], dataID[2], dataID[3])
 	return fmt.Sprintf("%s_%s", addrStr, dataIDStr)
