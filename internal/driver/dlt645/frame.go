@@ -292,6 +292,11 @@ func ParseAddressString(s string) ([6]byte, error) {
 }
 
 // ParseDataIDString 解析数据标识字符串
+// DL/T 645-2007 数据标识格式：DI3 DI2 DI1 DI0（高字节在前，与地址逻辑相反）
+// 例如 "00010000" → DI3=0x00, DI2=0x01, DI1=0x00, DI0=0x00
+// 帧中按低字节在前发送：[DI0, DI1, DI2, DI3]
+// 本函数存储为低字节在前（与帧一致）：
+// "00010000" → []byte{0x00, 0x00, 0x01, 0x00}
 // 1997: 4字符如 "9010" -> 2字节
 // 2007: 8字符如 "00010000" -> 4字节
 func ParseDataIDString(s string, version ProtocolVersion) ([]byte, error) {
@@ -316,9 +321,11 @@ func ParseDataIDString(s string, version ProtocolVersion) ([]byte, error) {
 
 	dataIDLen := expectedLen / 2
 	data := make([]byte, dataIDLen)
+	// 反转存储：CSV 字符串是高字节在前 (DI3,DI2,DI1,DI0)
+	// 帧中需要低字节在前 (DI0,DI1,DI2,DI3)，BuildRequest/SendRequest 会按索引顺序直接发送
 	for i := 0; i < dataIDLen; i++ {
-		hi := char2BCD(clean[i*2])
-		lo := char2BCD(clean[i*2+1])
+		hi := char2BCD(clean[(dataIDLen-1-i)*2])
+		lo := char2BCD(clean[(dataIDLen-1-i)*2+1])
 		data[i] = (hi << 4) | lo
 	}
 
