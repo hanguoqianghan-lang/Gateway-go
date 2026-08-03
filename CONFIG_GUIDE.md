@@ -87,7 +87,7 @@ drivers:
       timeout: "3s"
       poll_interval: "1s"
 
-  # DL/T 645驱动示例
+  # DL/T 645驱动示例（串口模式）
   - id: "dlt645-01"
     type: "dlt645"
     enabled: true
@@ -95,21 +95,38 @@ drivers:
     point_file: "./points/dlt645.csv"
 
     dlt645:
-      serial_port: "COM4"      # 串口设备路径
-      baud_rate: 9600          # 波特率
-      data_bits: 8             # 数据位
-      stop_bits: 1             # 停止位
-      parity: "even"           # 校验位：none, even, odd
-      protocol_version: "2007" # 协议版本：1997 或 2007
-      use_leading_byte: false  # 是否使用前导字节（唤醒沉睡电表）
-      leading_byte_count: 4    # 前导字节数量
-      char_timeout: "50ms"     # 字符间超时
-      frame_timeout: "200ms"   # 帧超时
-      response_timeout: "1s"   # 响应超时
-      max_retry: 3             # 最大重试次数
-      retry_interval: "1s"     # 重试间隔
-      poll_interval: "1s"      # 采集轮询间隔
+      transport: "serial"        # 传输模式：serial（串口）、tcp（网口），默认 serial
+      serial_port: "COM4"        # 串口设备路径（transport=serial时必填）
+      baud_rate: 9600            # 波特率
+      data_bits: 8               # 数据位
+      stop_bits: 1               # 停止位
+      parity: "even"             # 校验位：none, even, odd
+      protocol_version: "2007"   # 协议版本：1997 或 2007
+      use_leading_byte: false    # 是否使用前导字节（唤醒沉睡电表）
+      leading_byte_count: 4      # 前导字节数量
+      char_timeout: "50ms"       # 字符间超时
+      frame_timeout: "200ms"     # 帧超时
+      response_timeout: "1s"     # 响应超时
+      max_retry: 3               # 最大重试次数
+      retry_interval: "1s"       # 重试间隔
+      poll_interval: "1s"        # 采集轮询间隔
       query_interval_per_point: "50ms" # 每测点查询间隔
+
+  # DL/T 645驱动示例（TCP 网口模式，通过串口服务器或设备自带网口）
+  - id: "dlt645-02"
+    type: "dlt645"
+    enabled: false
+    name: "meter-tcp-1"
+    point_file: "./points/dlt645.csv"
+
+    dlt645:
+      transport: "tcp"           # 传输模式：tcp
+      tcp_addr: "192.168.1.100:4001" # TCP地址（transport=tcp时必填，格式 host:port）
+      protocol_version: "2007"   # 协议版本：1997 或 2007
+      use_leading_byte: false
+      response_timeout: "1s"
+      poll_interval: "1s"
+      query_interval_per_point: "50ms"
 
   # IEC101驱动示例
   - id: "iec101-01"
@@ -397,23 +414,47 @@ drivers:
 
 ```yaml
 drivers:
+  # 串口模式
   - id: "dlt645-01"
     type: "dlt645"
     enabled: true
     name: "meter-1"
     point_file: "./points/dlt645.csv"
     dlt645:
+      transport: "serial"
       serial_port: "COM3"
       baud_rate: 9600
 
+  # 串口模式（不同波特率）
   - id: "dlt645-02"
     type: "dlt645"
     enabled: true
     name: "meter-2"
     point_file: "./points/dlt645.csv"
     dlt645:
+      transport: "serial"
       serial_port: "COM4"
       baud_rate: 2400
+
+  # TCP 网口模式（通过串口服务器或设备自带网口）
+  - id: "dlt645-03"
+    type: "dlt645"
+    enabled: true
+    name: "meter-tcp-1"
+    point_file: "./points/dlt645.csv"
+    dlt645:
+      transport: "tcp"
+      tcp_addr: "192.168.1.100:4001"
+
+  # TCP 网口模式（不同IP）
+  - id: "dlt645-04"
+    type: "dlt645"
+    enabled: true
+    name: "meter-tcp-2"
+    point_file: "./points/dlt645.csv"
+    dlt645:
+      transport: "tcp"
+      tcp_addr: "192.168.1.101:4001"
 ```
 
 ## CSV 点表文件说明
@@ -510,6 +551,12 @@ energy,010203040506,9000,1.0,0,kWh,0,3600000,0,absolute
 - **Interval**: 采集间隔（毫秒），默认使用驱动配置（可选）
 - **DeadbandValue**: 死区阈值（可选）
 - **DeadbandType**: 死区类型，absolute/percent（可选）
+
+**传输模式说明：**
+- **串口模式** (`transport: serial`)：直接连接串口设备，需配置 `serial_port`、`baud_rate` 等串口参数
+- **TCP 网口模式** (`transport: tcp`)：通过串口服务器（如 MOXA、四信等）或设备自带网口连接，需配置 `tcp_addr`（格式：`host:port`，如 `192.168.1.100:4001`）
+
+点表格式在两种模式下保持一致，仅传输层配置不同。
 
 ### IEC101 点表文件 (points/iec101.csv)
 

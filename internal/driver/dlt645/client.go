@@ -1,10 +1,12 @@
-// internal/driver/dlt645/client.go - DL/T 645 串口客户端
+// internal/driver/dlt645/client.go - DL/T 645 客户端（支持串口和 TCP）
 package dlt645
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"sync"
 	"time"
 
@@ -12,74 +14,78 @@ import (
 	"go.uber.org/zap"
 )
 
-// Client DL/T 645 串口客户端
-type Client struct {
+// Transport 接口定义传输层通用操作
+type Transport interface {
+	Connect() error
+	Close() error
+	IsConnected() bool
+	Send(data []byte) error
+	ReceiveFrame(timeout time.Duration) (*Frame, error)
+	Flush()
+}
+
+// SerialTransport 串口传输实现
+type SerialTransport struct {
 	config *Config
 	logger *zap.Logger
 
-	mu       sync.Mutex
-	port     serial.Port
-	isOpen   bool
+	mu     sync.Mutex
+	port   serial.Port
+	isOpen bool
 
-	// 接收缓冲区
 	rxBuf []byte
 	rxMu  sync.Mutex
 }
 
-// NewClient 创建客户端
-func NewClient(config *Config, logger *zap.Logger) *Client {
-	return &Client{
+func NewSerialTransport(config *Config, logger *zap.Logger) *SerialTransport {
+	return &SerialTransport{
 		config: config,
-		logger: logger.With(zap.String("client", "dlt645")),
+		logger: logger.With(zap.String("transport", "serial")),
 		rxBuf:  make([]byte, 0, 4096),
 	}
 }
 
-// Connect 连接串口
-func (c *Client) Connect() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (t *SerialTransport) Connect() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
-	if c.isOpen {
+	if t.isOpen {
 		return nil
 	}
 
-	// 配置串口参数
 	cfg := &serial.Config{
-		Address:  c.config.SerialPort,
-		BaudRate: c.config.BaudRate,
-		DataBits: c.config.DataBits,
-		StopBits: c.config.StopBits,
-		Parity:   c.parseParity(c.config.Parity),
-		Timeout:  c.config.ResponseTimeout, // 使用响应超时而非字符超时
+		Address:  t.config.SerialPort,
+		BaudRate: t.config.BaudRate,
+		DataBits: t.config.DataBits,
+		StopBits: t.config.StopBits,
+		Parity:   t.parseParity(t.config.Parity),
+		Timeout:  t.config.ResponseTimeout,
 	}
 
-	c.logger.Info("尝试打开串口",
-		zap.String("port", c.config.SerialPort),
-		zap.Int("baud_rate", c.config.BaudRate),
-		zap.String("parity", c.config.Parity),
+	t.logger.Info("尝试打开串口",
+		zap.String("port", t.config.SerialPort),
+		zap.Int("baud_rate", t.config.BaudRate),
+		zap.String("parity", t.config.Parity),
 	)
 
-	// 打开串口
 	port, err := serial.Open(cfg)
 	if err != nil {
-		return fmt.Errorf("open serial port %s failed: %w", c.config.SerialPort, err)
+		return fmt.Errorf("open serial port %s failed: %w", t.config.SerialPort, err)
 	}
 
-	c.port = port
-	c.isOpen = true
+	t.port = port
+	t.isOpen = true
 
-	c.logger.Info("串口打开成功",
-		zap.String("port", c.config.SerialPort),
-		zap.Int("baud_rate", c.config.BaudRate),
-		zap.String("parity", c.config.Parity),
+	t.logger.Info("串口打开成功",
+		zap.String("port", t.config.SerialPort),
+		zap.Int("baud_rate", t.config.BaudRate),
+		zap.String("parity", t.config.Parity),
 	)
 
 	return nil
 }
 
-// parseParity 解析校验位
-func (c *Client) parseParity(parity string) string {
+func (t *SerialTransport) parseParity(parity string) string {
 	switch parity {
 	case "even":
 		return "E"
@@ -90,43 +96,40 @@ func (c *Client) parseParity(parity string) string {
 	}
 }
 
-// Close 关闭连接
-func (c *Client) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (t *SerialTransport) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
-	if !c.isOpen {
+	if !t.isOpen {
 		return nil
 	}
 
-	if c.port != nil {
-		c.port.Close()
+	if t.port != nil {
+		t.port.Close()
 	}
 
-	c.isOpen = false
-	c.rxBuf = c.rxBuf[:0]
+	t.isOpen = false
+	t.rxBuf = t.rxBuf[:0]
 
-	c.logger.Info("serial port closed")
+	t.logger.Info("serial port closed")
 	return nil
 }
 
-// IsConnected 检查连接状态
-func (c *Client) IsConnected() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.isOpen
+func (t *SerialTransport) IsConnected() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.isOpen
 }
 
-// Send 发送数据
-func (c *Client) Send(data []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (t *SerialTransport) Send(data []byte) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
-	if !c.isOpen {
+	if !t.isOpen {
 		return errors.New("serial port not open")
 	}
 
-	n, err := c.port.Write(data)
+	n, err := t.port.Write(data)
 	if err != nil {
 		return fmt.Errorf("write failed: %w", err)
 	}
@@ -135,7 +138,7 @@ func (c *Client) Send(data []byte) error {
 		return fmt.Errorf("incomplete write: %d/%d bytes", n, len(data))
 	}
 
-	c.logger.Debug("data sent",
+	t.logger.Debug("data sent",
 		zap.Int("bytes", n),
 		zap.String("hex", fmt.Sprintf("% X", data)),
 	)
@@ -143,14 +146,10 @@ func (c *Client) Send(data []byte) error {
 	return nil
 }
 
-// ReceiveFrame 接收完整帧
-func (c *Client) ReceiveFrame(timeout time.Duration) (*Frame, error) {
-	// DL/T 645 帧以 0x68 开始，以 0x16 结束
-	// 先读取到 0x68，然后读取长度，再读取完整帧
-
-	c.mu.Lock()
-	isOpen := c.isOpen
-	c.mu.Unlock()
+func (t *SerialTransport) ReceiveFrame(timeout time.Duration) (*Frame, error) {
+	t.mu.Lock()
+	isOpen := t.isOpen
+	t.mu.Unlock()
 
 	if !isOpen {
 		return nil, errors.New("serial port not open")
@@ -159,18 +158,16 @@ func (c *Client) ReceiveFrame(timeout time.Duration) (*Frame, error) {
 	startTime := time.Now()
 
 	for time.Since(startTime) < timeout {
-		// 检查是否找到完整的帧
-		c.rxMu.Lock()
-		if len(c.rxBuf) >= 12 { // 最小帧: 68 + 6地址 + 68 + C + L(>=2) + CS + 16
+		t.rxMu.Lock()
+		if len(t.rxBuf) >= 12 {
 			idx := -1
-			for i := 0; i < len(c.rxBuf); i++ {
-				if c.rxBuf[i] == FrameStart && i+12 <= len(c.rxBuf) {
-					// 找到可能的帧头，检查是否有完整帧
+			for i := 0; i < len(t.rxBuf); i++ {
+				if t.rxBuf[i] == FrameStart && i+12 <= len(t.rxBuf) {
 					frameStart := i
-					if frameStart+10 < len(c.rxBuf) {
-						l := int(c.rxBuf[frameStart+9])
+					if frameStart+10 < len(t.rxBuf) {
+						l := int(t.rxBuf[frameStart+9])
 						frameLen := 12 + l
-						if frameStart+frameLen <= len(c.rxBuf) {
+						if frameStart+frameLen <= len(t.rxBuf) {
 							idx = frameStart
 							break
 						}
@@ -180,56 +177,304 @@ func (c *Client) ReceiveFrame(timeout time.Duration) (*Frame, error) {
 
 			if idx >= 0 {
 				frameStart := idx
-				l := int(c.rxBuf[frameStart+9])
+				l := int(t.rxBuf[frameStart+9])
 				frameLen := 12 + l
 
 				result := make([]byte, frameLen)
-				copy(result, c.rxBuf[frameStart:frameStart+frameLen])
-				c.rxBuf = c.rxBuf[frameStart+frameLen:]
-				c.rxMu.Unlock()
+				copy(result, t.rxBuf[frameStart:frameStart+frameLen])
+				t.rxBuf = t.rxBuf[frameStart+frameLen:]
+				t.rxMu.Unlock()
 
-				c.logger.Debug("frame received",
+				t.logger.Debug("frame received",
 					zap.Int("bytes", len(result)),
 					zap.String("hex", fmt.Sprintf("% X", result)),
 				)
 
-				// 解析帧
-				frame, err := ParseFrame(result, c.config.ProtocolVersion)
+				frame, err := ParseFrame(result, t.config.ProtocolVersion)
 				if err != nil {
 					return nil, fmt.Errorf("parse frame failed: %w", err)
 				}
 				return frame, nil
 			}
 		}
-		c.rxMu.Unlock()
+		t.rxMu.Unlock()
 
-		// 尝试读取数据
 		readBuf := make([]byte, 256)
-		c.mu.Lock()
-		if c.isOpen && c.port != nil {
-			n, err := c.port.Read(readBuf)
-			c.mu.Unlock()
+		t.mu.Lock()
+		if t.isOpen && t.port != nil {
+			n, err := t.port.Read(readBuf)
+			t.mu.Unlock()
 			if err == nil && n > 0 {
-				c.rxMu.Lock()
-				c.rxBuf = append(c.rxBuf, readBuf[:n]...)
-				c.rxMu.Unlock()
+				t.rxMu.Lock()
+				t.rxBuf = append(t.rxBuf, readBuf[:n]...)
+				t.rxMu.Unlock()
 			} else if err != nil && err != io.EOF {
 				// 非 EOF 错误可能是超时，继续尝试
 			}
 		} else {
-			c.mu.Unlock()
+			t.mu.Unlock()
 		}
 
-		// 短暂休眠
 		time.Sleep(10 * time.Millisecond)
 	}
 
 	return nil, errors.New("receive timeout")
 }
 
+func (t *SerialTransport) Flush() {
+	t.rxMu.Lock()
+	t.rxBuf = t.rxBuf[:0]
+	t.rxMu.Unlock()
+}
+
+// TCPTransport TCP 传输实现
+type TCPTransport struct {
+	config *Config
+	logger *zap.Logger
+
+	mu     sync.Mutex
+	conn   net.Conn
+	isOpen bool
+
+	rxBuf []byte
+	rxMu  sync.Mutex
+}
+
+func NewTCPTransport(config *Config, logger *zap.Logger) *TCPTransport {
+	return &TCPTransport{
+		config: config,
+		logger: logger.With(zap.String("transport", "tcp")),
+		rxBuf:  make([]byte, 0, 4096),
+	}
+}
+
+func (t *TCPTransport) Connect() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.isOpen && t.conn != nil {
+		return nil
+	}
+
+	t.logger.Info("尝试连接 TCP",
+		zap.String("addr", t.config.TCPAddr),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), t.config.ResponseTimeout)
+	defer cancel()
+
+	dialer := &net.Dialer{}
+	conn, err := dialer.DialContext(ctx, "tcp", t.config.TCPAddr)
+	if err != nil {
+		return fmt.Errorf("connect to %s failed: %w", t.config.TCPAddr, err)
+	}
+
+	// 设置读取截止时间
+	conn.SetReadDeadline(time.Now().Add(t.config.ResponseTimeout))
+
+	t.conn = conn
+	t.isOpen = true
+
+	t.logger.Info("TCP 连接成功",
+		zap.String("addr", t.config.TCPAddr),
+		zap.String("local", conn.LocalAddr().String()),
+		zap.String("remote", conn.RemoteAddr().String()),
+	)
+
+	return nil
+}
+
+func (t *TCPTransport) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if !t.isOpen {
+		return nil
+	}
+
+	if t.conn != nil {
+		t.conn.Close()
+		t.conn = nil
+	}
+
+	t.isOpen = false
+	t.rxBuf = t.rxBuf[:0]
+
+	t.logger.Info("TCP 连接关闭")
+	return nil
+}
+
+func (t *TCPTransport) IsConnected() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.isOpen && t.conn != nil
+}
+
+func (t *TCPTransport) Send(data []byte) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if !t.isOpen || t.conn == nil {
+		return errors.New("TCP connection not open")
+	}
+
+	// 设置写入截止时间
+	t.conn.SetWriteDeadline(time.Now().Add(t.config.ResponseTimeout))
+
+	n, err := t.conn.Write(data)
+	if err != nil {
+		return fmt.Errorf("write failed: %w", err)
+	}
+
+	if n != len(data) {
+		return fmt.Errorf("incomplete write: %d/%d bytes", n, len(data))
+	}
+
+	t.logger.Debug("data sent",
+		zap.Int("bytes", n),
+		zap.String("hex", fmt.Sprintf("% X", data)),
+	)
+
+	return nil
+}
+
+func (t *TCPTransport) ReceiveFrame(timeout time.Duration) (*Frame, error) {
+	t.mu.Lock()
+	isOpen := t.isOpen
+	conn := t.conn
+	t.mu.Unlock()
+
+	if !isOpen || conn == nil {
+		return nil, errors.New("TCP connection not open")
+	}
+
+	startTime := time.Now()
+
+	for time.Since(startTime) < timeout {
+		t.rxMu.Lock()
+		if len(t.rxBuf) >= 12 {
+			idx := -1
+			for i := 0; i < len(t.rxBuf); i++ {
+				if t.rxBuf[i] == FrameStart && i+12 <= len(t.rxBuf) {
+					frameStart := i
+					if frameStart+10 < len(t.rxBuf) {
+						l := int(t.rxBuf[frameStart+9])
+						frameLen := 12 + l
+						if frameStart+frameLen <= len(t.rxBuf) {
+							idx = frameStart
+							break
+						}
+					}
+				}
+			}
+
+			if idx >= 0 {
+				frameStart := idx
+				l := int(t.rxBuf[frameStart+9])
+				frameLen := 12 + l
+
+				result := make([]byte, frameLen)
+				copy(result, t.rxBuf[frameStart:frameStart+frameLen])
+				t.rxBuf = t.rxBuf[frameStart+frameLen:]
+				t.rxMu.Unlock()
+
+				t.logger.Debug("frame received",
+					zap.Int("bytes", len(result)),
+					zap.String("hex", fmt.Sprintf("% X", result)),
+				)
+
+				frame, err := ParseFrame(result, t.config.ProtocolVersion)
+				if err != nil {
+					return nil, fmt.Errorf("parse frame failed: %w", err)
+				}
+				return frame, nil
+			}
+		}
+		t.rxMu.Unlock()
+
+		// 设置读取截止时间
+		conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+
+		readBuf := make([]byte, 256)
+		n, err := conn.Read(readBuf)
+		if err != nil {
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				// 超时继续尝试
+				continue
+			}
+			// 连接断开
+			t.Close()
+			return nil, fmt.Errorf("read failed: %w", err)
+		}
+
+		if n > 0 {
+			t.rxMu.Lock()
+			t.rxBuf = append(t.rxBuf, readBuf[:n]...)
+			t.rxMu.Unlock()
+		}
+	}
+
+	return nil, errors.New("receive timeout")
+}
+
+func (t *TCPTransport) Flush() {
+	t.rxMu.Lock()
+	t.rxBuf = t.rxBuf[:0]
+	t.rxMu.Unlock()
+}
+
+// Client DL/T 645 统一客户端（支持串口和 TCP）
+type Client struct {
+	config    *Config
+	logger    *zap.Logger
+	transport Transport
+}
+
+// NewClient 创建客户端（根据配置自动选择传输方式）
+func NewClient(config *Config, logger *zap.Logger) *Client {
+	var transport Transport
+	switch config.Transport {
+	case TransportTCP:
+		transport = NewTCPTransport(config, logger)
+	default:
+		transport = NewSerialTransport(config, logger)
+	}
+
+	return &Client{
+		config:    config,
+		logger:    logger.With(zap.String("client", "dlt645")),
+		transport: transport,
+	}
+}
+
+// Connect 连接
+func (c *Client) Connect() error {
+	return c.transport.Connect()
+}
+
+// Close 关闭连接
+func (c *Client) Close() error {
+	return c.transport.Close()
+}
+
+// IsConnected 检查连接状态
+func (c *Client) IsConnected() bool {
+	return c.transport.IsConnected()
+}
+
+// Send 发送数据
+func (c *Client) Send(data []byte) error {
+	return c.transport.Send(data)
+}
+
+// ReceiveFrame 接收完整帧
+func (c *Client) ReceiveFrame(timeout time.Duration) (*Frame, error) {
+	return c.transport.ReceiveFrame(timeout)
+}
+
 // SendFrame 发送帧
 func (c *Client) SendFrame(frame []byte) error {
-	return c.Send(frame)
+	return c.transport.Send(frame)
 }
 
 // SendRequest 发送读请求并等待响应
@@ -287,7 +532,5 @@ func (c *Client) matchAddress(received, expected [6]byte) bool {
 
 // Flush 刷新接收缓冲区
 func (c *Client) Flush() {
-	c.rxMu.Lock()
-	c.rxBuf = c.rxBuf[:0]
-	c.rxMu.Unlock()
+	c.transport.Flush()
 }

@@ -27,13 +27,20 @@ func NewDLT645DriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, 
 	cfg.ID = drvCfg.ID
 	cfg.Name = drvCfg.Name
 
-	// 解析串口配置
+	// 解析传输配置
 	if drvCfg.DLT645 != nil {
+		// 传输模式
+		cfg.Transport = parseTransportMode(drvCfg.DLT645.Transport)
+
+		// 串口配置
 		cfg.SerialPort = drvCfg.DLT645.SerialPort
 		cfg.BaudRate = drvCfg.DLT645.BaudRate
 		cfg.DataBits = drvCfg.DLT645.DataBits
 		cfg.StopBits = drvCfg.DLT645.StopBits
 		cfg.Parity = drvCfg.DLT645.Parity
+
+		// TCP 配置
+		cfg.TCPAddr = drvCfg.DLT645.TCPAddr
 
 		// 协议版本
 		cfg.ProtocolVersion = parseProtocolVersion(drvCfg.DLT645.ProtocolVersion)
@@ -76,7 +83,9 @@ func NewDLT645DriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, 
 	}
 
 	logger.Info("DLT645 driver created",
+		zap.String("transport", string(cfg.Transport)),
 		zap.String("port", cfg.SerialPort),
+		zap.String("tcp_addr", cfg.TCPAddr),
 		zap.Int("baud_rate", cfg.BaudRate),
 		zap.String("parity", cfg.Parity),
 		zap.Int("protocol_version", int(cfg.ProtocolVersion)),
@@ -93,6 +102,15 @@ func parseProtocolVersion(version string) ProtocolVersion {
 		return Version1997
 	default:
 		return Version2007
+	}
+}
+
+func parseTransportMode(transport string) TransportMode {
+	switch transport {
+	case "tcp":
+		return TransportTCP
+	default:
+		return TransportSerial
 	}
 }
 

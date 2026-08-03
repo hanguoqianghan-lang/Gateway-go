@@ -14,17 +14,31 @@ const (
 	Version2007 ProtocolVersion = 2007
 )
 
+// TransportMode 传输模式
+type TransportMode string
+
+const (
+	TransportSerial TransportMode = "serial" // 串口模式
+	TransportTCP    TransportMode = "tcp"    // TCP 网口模式（通过串口服务器或设备自带网口）
+)
+
 // Config DL/T 645 驱动配置
 type Config struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 
-	// 串口配置
+	// 传输模式：serial 或 tcp
+	Transport TransportMode `json:"transport"` // 默认 serial
+
+	// 串口配置（transport=serial 时必填）
 	SerialPort string `json:"serial_port"`
 	BaudRate    int    `json:"baud_rate"`
 	DataBits    int    `json:"data_bits"`
 	StopBits    int    `json:"stop_bits"`
 	Parity      string `json:"parity"`
+
+	// TCP 配置（transport=tcp 时必填）
+	TCPAddr string `json:"tcp_addr"` // 格式: host:port，如 "192.168.1.100:4001"
 
 	// 协议配置
 	ProtocolVersion ProtocolVersion `json:"protocol_version"` // 1997 或 2007
@@ -82,6 +96,7 @@ const (
 // DefaultConfig 返回默认配置
 func DefaultConfig() *Config {
 	return &Config{
+		Transport:            TransportSerial,
 		ProtocolVersion:      Version2007,
 		BaudRate:             9600,
 		DataBits:             8,
@@ -102,8 +117,19 @@ func DefaultConfig() *Config {
 
 // Validate 验证配置
 func (c *Config) Validate() error {
-	if c.SerialPort == "" {
-		return fmt.Errorf("serial_port is required")
+	// 验证传输模式
+	if c.Transport != TransportSerial && c.Transport != TransportTCP {
+		c.Transport = TransportSerial // 默认串口
+	}
+
+	if c.Transport == TransportSerial {
+		if c.SerialPort == "" {
+			return fmt.Errorf("serial_port is required for serial transport")
+		}
+	} else if c.Transport == TransportTCP {
+		if c.TCPAddr == "" {
+			return fmt.Errorf("tcp_addr is required for tcp transport")
+		}
 	}
 
 	if c.BaudRate <= 0 {

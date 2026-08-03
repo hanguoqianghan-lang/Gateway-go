@@ -145,7 +145,19 @@ func (l *Loader) validate(cfg *config.AppConfig) error {
 				return fmt.Errorf("drivers[%d].modbus.port 无效: %d", i, drv.Modbus.Port)
 			}
 		case "dlt645":
-			// DL/T 645 驱动仅验证串口配置，其他可选
+			// DL/T 645 驱动验证传输配置
+			if drv.DLT645 != nil {
+				if drv.DLT645.Transport == "tcp" {
+					if drv.DLT645.TCPAddr == "" {
+						return fmt.Errorf("drivers[%d].dlt645.tcp_addr 不能为空（TCP 模式下必填）", i)
+					}
+				} else {
+					// 默认串口模式
+					if drv.DLT645.SerialPort == "" {
+						return fmt.Errorf("drivers[%d].dlt645.serial_port 不能为空（串口模式下必填）", i)
+					}
+				}
+			}
 		case "iec101", "iec102", "iec103":
 			// IEC101/102/103 驱动暂不验证，让驱动自行处理
 		case "gb26875":
@@ -288,6 +300,9 @@ func (l *Loader) fillDefaults(cfg *config.AppConfig) {
 
 		// DL/T 645 默认值
 		if drv.Type == "dlt645" && drv.DLT645 != nil {
+			if drv.DLT645.Transport == "" {
+				drv.DLT645.Transport = "serial"
+			}
 			if drv.DLT645.BaudRate == 0 {
 				drv.DLT645.BaudRate = 9600
 			}

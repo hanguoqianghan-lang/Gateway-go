@@ -231,7 +231,9 @@ type IEC103DriverConfig struct {
 
 // DLT645DriverConfig DL/T 645 驱动配置
 type DLT645DriverConfig struct {
-	// SerialPort 串口设备路径（如 COM3/COM4）
+	// Transport 传输模式：serial（串口）、tcp（网口）
+	Transport string `yaml:"transport" json:"transport" default:"serial"`
+	// SerialPort 串口设备路径（transport=serial 时必填，如 COM3/COM4）
 	SerialPort string `yaml:"serial_port" json:"serial_port"`
 	// BaudRate 波特率
 	BaudRate int `yaml:"baud_rate" json:"baud_rate" default:"9600"`
@@ -241,6 +243,8 @@ type DLT645DriverConfig struct {
 	StopBits int `yaml:"stop_bits" json:"stop_bits" default:"1"`
 	// Parity 校验位：none, even, odd
 	Parity string `yaml:"parity" json:"parity" default:"even"`
+	// TCPAddr TCP 连接地址（transport=tcp 时必填，格式 host:port，如 192.168.1.100:4001）
+	TCPAddr string `yaml:"tcp_addr" json:"tcp_addr"`
 	// ProtocolVersion 协议版本：1997 或 2007
 	ProtocolVersion string `yaml:"protocol_version" json:"protocol_version" default:"2007"`
 	// UseLeadingByte 是否使用前导字节（唤醒沉睡电表）
