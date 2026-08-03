@@ -9,7 +9,7 @@
 工业物联网网关 - 基于 Go 1.24+ 开发，支持多种工业协议的高速数据采集和北向转发系统。
 
 **核心特性：**
-- 多协议南向驱动：Modbus TCP/RTU、IEC104、IEC101/102/103、DL/T 645、GB102
+- 多协议南向驱动：Modbus TCP/RTU、IEC104、IEC101/102/103、DL/T 645、GB/T 26875.3、国网102
 - 多北向导出器：MQTT、Kafka、IEC104 Server
 - 配置驱动：YAML + CSV 点表
 - 高性能：sync.Pool 对象池、批量优化、零拷贝
@@ -74,7 +74,7 @@ make tidy                # 整理 go.mod / go.sum
 
 **已注册的南向驱动：**
 
-| 类型 | 说明 | 配置文件 |
+| 类型 | 说明 | 配置前缀 |
 |------|------|----------|
 | `modbus_tcp` | Modbus TCP 主站 | modbus |
 | `modbus_rtu` | Modbus RTU 主站 | modbus_rtu |
@@ -83,7 +83,8 @@ make tidy                # 整理 go.mod / go.sum
 | `iec102` | IEC 60870-5-102 电能量 | iec102 |
 | `iec103` | IEC 60870-5-103 继电保护 | iec103 |
 | `dlt645` | DL/T 645-1997/2007 电能表 | dlt645 |
-| `gb102` | GB/T 17215.321 电能表 | gb102 |
+| `gb26875` | GB/T 26875.3 消防监控 | gb26875 |
+| `guowang102` | 国网102 风光一体 | guowang102 |
 
 **已注册的北向导出器：**
 
@@ -151,6 +152,7 @@ bus.Publish(p)
 - 点表索引：`map[uint32]*pointMapping`，key = `(CA << 24) | IOA`
 - ASDU Worker Pool：10 个 worker 并发处理
 - 支持：总召唤(GI)、时钟同步、计数召唤、测试命令
+- 可配置 ASDU 缓冲区大小 (默认 50000)
 
 ### IEC101 驱动 (`internal/driver/iec101/`)
 
@@ -158,10 +160,37 @@ bus.Publish(p)
 - 平衡/非平衡模式
 - SOE (Sequence of Events) 支持
 
+### IEC102 驱动 (`internal/driver/iec102/`)
+
+- IEC 60870-5-102 电能量采集
+- 串口传输
+
+### IEC103 驱动 (`internal/driver/iec103/`)
+
+- IEC 60870-5-103 继电保护
+- SOE 大队列 (默认 10000)
+- SOE Worker Pool (默认 10)
+
 ### DL/T 645 驱动 (`internal/driver/dlt645/`)
 
 - 支持 DL/T 645-1997 和 DL/T 645-2007
 - 前导字节 FE 支持（激活沉睡电表）
+- 地址反转处理（帧中低字节在前）
+
+### GB/T 26875.3 驱动 (`internal/driver/gb26875/`)
+
+- 角色：监控中心（TCP Server）
+- 监听端口，等待传输装置主动连接
+- 支持主动下发：时钟同步(类型90)、初始化(89)、查岗(91)
+- 点表索引：复合 key = type|sysaddr|comptype|component_addr
+- 多连接管理，最大并发可配置
+
+### 国网102 驱动 (`internal/driver/guowang102/`)
+
+- 风光一体化采集协议
+- 文件传输支持（遥测文件、SOE文件、配置文件）
+- FC=9 链路状态、FC=10 一级数据、FC=11 二级数据
+- 断点续传、本地文件存储
 
 ---
 
@@ -170,18 +199,22 @@ bus.Publish(p)
 ### MQTT 导出器 (`internal/exporter/mqtt.go`)
 
 - 基于 `eclipse/paho.mqtt.golang`
-- 支持：QoS 0/1/2、认证、保留消息
+- 支持：QoS 0/1/2、认证、保留消息、自动重连
 - 主题格式：`{topic_prefix}/{driver_name}/{point_name}`
+- 批量发送：按 slaveID 分组，JSON 序列化
 
 ### Kafka 导出器 (`internal/exporter/kafka.go`)
 
 - 基于 `segmentio/kafka-go`
-- 支持：异步写入、批量发送、压缩、SASL/TLS
+- 支持：异步写入、批量发送、压缩 (gzip/snappy/lz4/zstd)、SASL/TLS
+- Hash 分区器：同一测点数据有序进入相同 Partition
+- 使用 json-iterator 高性能 JSON 序列化
 
 ### IEC104 Server (`internal/exporter/iec104server/`)
 
 - 将采集数据转发给 SCADA 系统
 - 点表映射文件：`points/iec104_server.csv`
+- 支持多客户端连接
 
 ---
 
@@ -194,9 +227,15 @@ bus.Publish(p)
 | `config/config.yaml` | 配置文件示例 |
 | `config/loader.go` | 配置加载器 |
 | `internal/driver/driver.go` | 驱动接口定义 |
+| `internal/driver/factory.go` | 驱动工厂 |
 | `internal/driver/modbus/driver.go` | Modbus 驱动实现 |
 | `internal/driver/iec104/driver.go` | IEC104 驱动实现 |
+| `internal/driver/gb26875/driver.go` | GB26875 驱动实现 |
+| `internal/driver/guowang102/driver.go` | 国网102 驱动实现 |
 | `internal/exporter/exporter.go` | 导出器接口 |
+| `internal/exporter/mqtt.go` | MQTT 导出器 |
+| `internal/exporter/kafka.go` | Kafka 导出器 |
+| `internal/exporter/batcher.go` | 批量发送器 |
 | `internal/broker/bus.go` | 事件总线 |
 | `internal/registry/registry.go` | 驱动/导出器注册 |
 | `internal/point/parser.go` | CSV 点表解析 |
@@ -213,10 +252,14 @@ bus.Publish(p)
        driver.RegisterDriver("<type_name>", NewDriverFromConfig)
    }
    ```
-3. 在 `config/config.go` 添加配置结构体
+3. 在 `config/config.go` 添加配置结构体 (如 `XXXDriverConfig`)
 4. 在 `internal/config/loader.go` 添加默认值填充逻辑
-5. 在 `internal/registry/registry.go` 添加 blank import
-6. 添加单元测试（如有）
+5. 在 `internal/registry/registry.go` 添加 blank import：
+   ```go
+   _ "github.com/gateway/gateway/internal/driver/<name>"
+   ```
+6. 添加 CSV 点表解析逻辑（参考现有驱动的 register.go）
+7. 添加单元测试（如有）
 
 ---
 
@@ -225,19 +268,20 @@ bus.Publish(p)
 ### Modbus 点表 (`points/*.csv`)
 
 ```csv
-Name,Address,Type,DataType,ByteOrder,Scale,Offset,Interval,UnitID,Description
+Name,Address,Type,DataType,ByteOrder,BitPos,Scale,Offset,Interval,UnitID,Description
 ```
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
 | Name | 测点名称 | `temperature` |
-| Address | 寄存器地址 | `0`, `100` |
+| Address | 寄存器地址 (0-65535) | `100` |
 | Type | holding/input/coil/discrete | `holding` |
 | DataType | int16/uint16/int32/uint32/float32/float64/bool | `float32` |
 | ByteOrder | big/little/ABCD/CDAB/BADC/DCBA | `BADC` |
+| BitPos | 位提取位置 0-15，-1=不启用 | `-1` |
 | Scale | 缩放系数 | `0.1` |
-| Offset | 偏移量 | `100` |
-| Interval | 采集间隔(ms) | `1000` |
+| Offset | 偏移量 | `0` |
+| Interval | 采集间隔(ms)，0=默认 | `1000` |
 | UnitID | 从站地址(0=默认) | `1` |
 | Description | 描述 | `温度传感器` |
 
@@ -247,11 +291,103 @@ Name,Address,Type,DataType,ByteOrder,Scale,Offset,Interval,UnitID,Description
 Name,IOA,CommonAddress,Type,Scale,Offset,DeadbandValue,DeadbandType,Description
 ```
 
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| Name | 测点名称 | `voltage_a` |
+| IOA | 信息对象地址 (0-16777215) | `100` |
+| CommonAddress | 公共地址 (0-255)，0=使用驱动默认 | `1` |
+| Type | M_SP_NA_1/M_DP_NA_1/M_ME_NC_1/M_IT_NA_1... | `M_ME_NC_1` |
+| Scale | 缩放系数 | `1.0` |
+| Offset | 偏移量 | `0` |
+| DeadbandValue | 死区阈值 | `0.1` |
+| DeadbandType | absolute/percent | `absolute` |
+| Description | 描述 | `A相电压` |
+
+**IEC104 类型标识符：**
+- `M_SP_NA_1` - 单点遥信
+- `M_DP_NA_1` - 双点遥信
+- `M_ME_NA_1` - 归一化值 (-1.0~1.0)
+- `M_ME_NB_1` - 标度化值 (-32768~32767)
+- `M_ME_NC_1` - 短浮点数 (IEEE 754)
+- `M_IT_NA_1` - 累计量
+- `M_ST_NA_1` - 步位置信息
+- `M_BO_NA_1` - 32位比特串
+
+### IEC101 点表 (`points/iec101.csv`)
+
+```csv
+Name,CA,IOA,TypeID,Scale,Offset,Interval,DeadbandValue,DeadbandType
+```
+
+### IEC102 点表 (`points/iec102.csv`)
+
+```csv
+Name,CA,IOA,TypeID,Scale,Offset,Interval,DeadbandValue,DeadbandType
+```
+
+### IEC103 点表 (`points/iec103.csv`)
+
+```csv
+Name,CA,IOA,TypeID,Scale,Offset,Interval,DeadbandValue,DeadbandType
+```
+
+### DL/T 645 点表 (`points/dlt645.csv`)
+
+```csv
+Name,Address,DataID,Scale,Offset,Unit,Precision,Interval,DeadbandValue,DeadbandType
+```
+
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| Name | 测点名称 | `voltage` |
+| Address | 表地址 (12位BCD，如 010203040506) | `010203040506` |
+| DataID | 数据标识 (4字节HEX) | `9011` |
+| Scale | 缩放系数 | `0.1` |
+| Offset | 偏移量 | `0` |
+| Unit | 单位 | `V` |
+| Precision | 小数位数 | `1` |
+| Interval | 采集间隔(ms) | `1000` |
+| DeadbandValue | 死区阈值 | `0.5` |
+| DeadbandType | absolute/percent | `absolute` |
+
+### GB/T 26875.3 点表 (`points/gb26875.csv`)
+
+```csv
+Name,DeviceAddress,MessageType,SystemType,SystemAddress,ComponentType,ComponentAddr,AnalogType,AddrFormat,Scale,Offset,DeadbandValue,DeadbandType,Description
+```
+
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| Name | 测点名称 | `fire_alarm_1` |
+| DeviceAddress | 装置地址 (6字节HEX，可选) | `800D00000000` |
+| MessageType | 消息类型 (必填) | `1` |
+| SystemType | 系统类型 | `1` |
+| SystemAddress | 系统地址 | `1` |
+| ComponentType | 部件类型 | `1` |
+| ComponentAddr | 部件地址 (4字节HEX) | `00000001` |
+| AnalogType | 模拟量类型 | `1` |
+| AddrFormat | 地址格式 (默认1) | `1` |
+| Scale | 缩放系数 | `1.0` |
+| Offset | 偏移量 | `0` |
+| DeadbandValue | 死区阈值 | `0` |
+| DeadbandType | absolute/percent | `absolute` |
+| Description | 描述 | `火警1` |
+
 ### IEC104 Server 点表 (`points/iec104_server.csv`)
 
 ```csv
 Name,IOA,TypeID,COT,Scale,Offset,CommonAddress
 ```
+
+| 字段 | 说明 |
+|------|------|
+| Name | 内部测点 ID (格式: driver/iec104/point_name) |
+| IOA | IEC104 IOA 地址 |
+| TypeID | 类型标识 |
+| COT | 传送原因 |
+| Scale | 缩放系数 |
+| Offset | 偏移量 |
+| CommonAddress | 公共地址 |
 
 ---
 
@@ -278,6 +414,18 @@ Name,IOA,TypeID,COT,Scale,Offset,CommonAddress
 - `exporters.mqtt.enabled` 是否为 true
 - 主题前缀是否正确
 
+### Q: IEC104 总召唤不执行？
+检查：
+- `gi_interval` > 0 (如 `15m`)
+- 点表中有对应类型测点
+- 日志查看 "发送总召唤" 记录
+
+### Q: DL/T 645 读取无响应？
+检查：
+- 串口参数 (波特率、校验位) 与电表一致
+- 地址格式正确 (12位BCD)
+- 是否需要前导字节唤醒 (`use_leading_byte: true`)
+
 ---
 
 ## 技术栈
@@ -291,3 +439,25 @@ Name,IOA,TypeID,COT,Scale,Offset,CommonAddress
 | MQTT | github.com/eclipse/paho.mqtt.golang |
 | Kafka | github.com/segmentio/kafka-go |
 | YAML 解析 | gopkg.in/yaml.v3 |
+| JSON | github.com/json-iterator/go |
+
+---
+
+## 测试要点
+
+```bash
+# 运行所有测试（含竞态检测）
+make test
+
+# 测试 Modbus 寄存器合并逻辑
+go test -v ./internal/driver/modbus/ -run TestMerge
+
+# 测试 IEC104 点表索引
+go test -v ./internal/driver/iec104/ -run TestPointMap
+
+# 测试 Broker 总线
+go test -v ./internal/broker/
+
+# 测试配置加载
+go test -v ./internal/config/
+```
