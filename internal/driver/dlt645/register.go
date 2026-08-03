@@ -134,6 +134,7 @@ func parsePointsFromCSV(filePath string, version ProtocolVersion, logger *zap.Lo
 
 	var points []PointConfig
 	lineNum := 1
+	skipped := 0
 
 	for {
 		lineNum++
@@ -142,7 +143,16 @@ func parsePointsFromCSV(filePath string, version ProtocolVersion, logger *zap.Lo
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("read CSV line %d failed: %w", lineNum, err)
+			// 读取错误也跳过，继续处理后续行
+			if logger != nil {
+				logger.Warn("DLT645 CSV read line error, skipping",
+					zap.Int("line", lineNum),
+					zap.String("file", filePath),
+					zap.Error(err),
+				)
+			}
+			skipped++
+			continue
 		}
 
 		// 跳过空行
@@ -152,14 +162,30 @@ func parsePointsFromCSV(filePath string, version ProtocolVersion, logger *zap.Lo
 
 		pt, err := parsePointLine(record, headerMap, version, lineNum)
 		if err != nil {
-			return nil, err
+			if logger != nil {
+				logger.Warn("DLT645 CSV line parse error, skipping",
+					zap.Int("line", lineNum),
+					zap.String("file", filePath),
+					zap.Strings("record", record),
+					zap.Error(err),
+				)
+			}
+			skipped++
+			continue
 		}
 
 		points = append(points, pt)
 	}
 
+	if len(points) == 0 && skipped > 0 {
+		return nil, fmt.Errorf("all %d data lines in CSV are invalid: %s", skipped, filePath)
+	}
+
 	if logger != nil {
-		logger.Info("DLT645 CSV parsed", zap.Int("points", len(points)))
+		logger.Info("DLT645 CSV parsed",
+			zap.Int("points", len(points)),
+			zap.Int("skipped", skipped),
+		)
 	}
 
 	return points, nil

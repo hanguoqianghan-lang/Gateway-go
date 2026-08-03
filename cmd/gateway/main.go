@@ -19,6 +19,8 @@ import (
 	"github.com/gateway/gateway/internal/exporter"
 	// 导入驱动包以触发 init() 注册
 	_ "github.com/gateway/gateway/internal/driver/dlt645"
+	_ "github.com/gateway/gateway/internal/driver/gb26875"
+	_ "github.com/gateway/gateway/internal/driver/guowang102"
 	_ "github.com/gateway/gateway/internal/driver/iec104"
 	_ "github.com/gateway/gateway/internal/driver/modbus"
 	"go.uber.org/zap"
@@ -106,9 +108,10 @@ func main() {
 		zap.Int("started", startResult.Started),
 	)
 
-	// 核心判断：如果没有任何驱动成功启动，则退出
+	// 核心判断：如果没有任何驱动成功启动，打印错误但继续运行供排查
+	// 用户可通过 HTTP /health 和日志查看详细错误信息
 	if startResult.Started == 0 {
-		logger.Fatal("所有驱动启动失败，网关无法工作",
+		logger.Error("所有驱动启动失败，网关无采集数据",
 			zap.Int("total", startResult.Total),
 			zap.Errors("errors", startResult.Errors),
 		)

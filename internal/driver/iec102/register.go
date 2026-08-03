@@ -116,6 +116,7 @@ func parseIEC102CSV(filePath string, logger *zap.Logger) ([]iec102PointCSV, erro
 
 	var points []iec102PointCSV
 	lineNum := 1
+	skipped := 0
 
 	for {
 		lineNum++
@@ -124,7 +125,15 @@ func parseIEC102CSV(filePath string, logger *zap.Logger) ([]iec102PointCSV, erro
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("read CSV line %d failed: %w", lineNum, err)
+			if logger != nil {
+				logger.Warn("IEC102 CSV read line error, skipping",
+					zap.Int("line", lineNum),
+					zap.String("file", filePath),
+					zap.Error(err),
+				)
+			}
+			skipped++
+			continue
 		}
 
 		// 跳过空行
@@ -134,10 +143,23 @@ func parseIEC102CSV(filePath string, logger *zap.Logger) ([]iec102PointCSV, erro
 
 		point, err := parseIEC102Line(record, headerMap, lineNum)
 		if err != nil {
-			return nil, err
+			if logger != nil {
+				logger.Warn("IEC102 CSV line parse error, skipping",
+					zap.Int("line", lineNum),
+					zap.String("file", filePath),
+					zap.Strings("record", record),
+					zap.Error(err),
+				)
+			}
+			skipped++
+			continue
 		}
 
 		points = append(points, point)
+	}
+
+	if len(points) == 0 && skipped > 0 {
+		return nil, fmt.Errorf("all %d data lines in CSV are invalid: %s", skipped, filePath)
 	}
 
 	return points, nil

@@ -1,0 +1,103 @@
+# 国网102风光一体网关配置示例
+# 文件路径: config/config_guowang102.yaml
+
+gateway:
+  name: "GuoWang102_Gateway"
+  version: "1.0.0"
+  metrics_addr: ":8080"
+  log_level: "info"
+  log_path: "./logs/gateway.log"
+  log_max_size: 100
+  log_max_backups: 3
+  log_max_age: 28
+  log_compress: true
+
+drivers:
+  - id: "guowang102_wind_farm_01"
+    type: "guowang102"
+    enabled: true
+    name: "guowang102_wind_farm"
+    point_file: "./points/guowang102_dummy.csv"  # 占位文件，驱动不需要点表
+    guowang102:
+      # 网络连接
+      host: "192.168.1.100"           # 子站 IP (功率预测系统)
+      port: 6960                      # 固定端口
+      link_address: 65535             # 0xFFFF
+      common_address: 65535           # 0xFFFF
+      connect_timeout: "10s"
+      read_timeout: "30s"
+      write_timeout: "10s"
+      keepalive_interval: "10s"
+
+      # 协议流程
+      link_status_interval: "60s"       # FC=9 链路状态检查间隔
+      background_scan_interval: "15m"   # FC=11 召唤2级数据间隔
+      periodic_read_interval: "5m"      # FC=10 召唤1级数据间隔
+      max_retry: 3
+      retry_interval: "5s"
+      frame_timeout: "5s"
+
+      # 文件存储
+      storage_dir: "./data/guowang102/files"
+      max_file_size: 20480              # 512*40 字节
+      file_timeout: "30s"
+
+      log_level: "info"
+
+exporters:
+  mqtt:
+    enabled: true
+    broker: "tcp://127.0.0.1:1883"
+    client_id: "gateway_guowang102"
+    topic_prefix: "gateway/guowang102"
+    qos: 1
+    username: ""
+    password: ""
+    conn_timeout: "5s"
+
+  kafka:
+    enabled: false
+    brokers:
+      - "127.0.0.1:9092"
+    topic: "gateway-data"
+    client_id: "gateway-producer"
+    async: true
+    timeout: "5s"
+    batch_size: 100
+    batch_timeout: "10ms"
+    compression: "none"
+    flush_messages: 100
+    flush_timeout: "1s"
+    acks: 1
+
+  iec104:
+    enabled: false
+    bind_addr: ":2404"
+    common_address: 1
+    max_connections: 5
+    point_map_file: "./points/iec104_server.csv"
+    idle_timeout: "60s"
+    interrogation_addr: 20
+
+  batch:
+    max_size: 500
+    max_latency: "200ms"
+
+bus:
+  buffer_size: 8192
+  deadband_threshold: 0
+
+storage:
+  enabled: false
+  type: "memory"
+  path: "./data/gateway.db"
+  max_memory_size: 100
+  flush_interval: "30s"
+  retry_interval: "10s"
+
+ntp:
+  enabled: false
+  server: "pool.ntp.org"
+  port: 123
+  interval: "1h"
+  timeout: "5s"

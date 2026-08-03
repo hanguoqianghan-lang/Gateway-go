@@ -77,6 +77,12 @@ type DriverConfig struct {
 
 	// DL/T 645 配置（仅当 Type=dlt645 时有效）
 	DLT645 *DLT645DriverConfig `yaml:"dlt645,omitempty" json:"dlt645,omitempty"`
+
+	// GB/T 26875.3 配置（仅当 Type=gb26875 时有效）
+	GB26875 *GB26875DriverConfig `yaml:"gb26875,omitempty" json:"gb26875,omitempty"`
+
+	// 国网102风光一体配置（仅当 Type=guowang102 时有效）
+	GuoWang102 *GuoWang102DriverConfig `yaml:"guowang102,omitempty" json:"guowang102,omitempty"`
 }
 
 // ModbusDriverConfig Modbus TCP 驱动配置
@@ -255,6 +261,74 @@ type DLT645DriverConfig struct {
 	PollInterval time.Duration `yaml:"poll_interval" json:"poll_interval" default:"1s"`
 	// QueryIntervalPerPoint 每测点查询间隔（加速采集）
 	QueryIntervalPerPoint time.Duration `yaml:"query_interval_per_point" json:"query_interval_per_point" default:"50ms"`
+}
+
+// GB26875DriverConfig GB/T 26875.3 驱动配置
+type GB26875DriverConfig struct {
+	// Host 监听地址（如 0.0.0.0 或留空）
+	Host string `yaml:"host" json:"host" default:"0.0.0.0"`
+	// Port TCP 监听端口
+	Port int `yaml:"port" json:"port" default:"5001"`
+	// LocalAddress 本机地址（6字节HEX字符串，下行报文的源地址）
+	LocalAddress string `yaml:"local_address" json:"local_address" default:"000000000000"`
+	// MaxConnections 最大并发传输装置连接数
+	MaxConnections int `yaml:"max_connections" json:"max_connections" default:"100"`
+	// ReadTimeout 接收单帧超时
+	ReadTimeout time.Duration `yaml:"read_timeout" json:"read_timeout" default:"10s"`
+	// WriteTimeout 发送超时
+	WriteTimeout time.Duration `yaml:"write_timeout" json:"write_timeout" default:"5s"`
+	// FrameTimeout 相邻字节超时（用于切分帧）
+	FrameTimeout time.Duration `yaml:"frame_timeout" json:"frame_timeout" default:"200ms"`
+	// ClockSyncInterval 时钟同步周期（0 = 不主动同步；非0时按周期广播）
+	ClockSyncInterval time.Duration `yaml:"clock_sync_interval" json:"clock_sync_interval" default:"0"`
+	// Version 主版本号（固定1）
+	Version uint8 `yaml:"version" json:"version" default:"1"`
+	// UserVersion 用户版本号（自定义）
+	UserVersion uint8 `yaml:"user_version" json:"user_version" default:"1"`
+	// EnableSystemMetrics 是否启用系统测点（连接状态、计数等）
+	EnableSystemMetrics bool `yaml:"enable_system_metrics" json:"enable_system_metrics" default:"false"`
+	// ADUBufferSize 接收 ADU 缓冲区大小
+	ADUBufferSize int `yaml:"adu_buffer_size" json:"adu_buffer_size" default:"5000"`
+}
+
+// GuoWang102DriverConfig 国网102风光一体驱动配置
+type GuoWang102DriverConfig struct {
+	// Host 子站 IP 地址
+	Host string `yaml:"host" json:"host" default:"127.0.0.1"`
+	// Port 子站端口，固定 6960
+	Port int `yaml:"port" json:"port" default:"6960"`
+	// LinkAddress 链路地址，固定 0xFFFF
+	LinkAddress uint16 `yaml:"link_address" json:"link_address" default:"65535"`
+	// CommonAddress 公共地址，固定 0xFFFF
+	CommonAddress uint16 `yaml:"common_address" json:"common_address" default:"65535"`
+	// ConnectTimeout 连接超时
+	ConnectTimeout time.Duration `yaml:"connect_timeout" json:"connect_timeout" default:"10s"`
+	// ReadTimeout 读超时
+	ReadTimeout time.Duration `yaml:"read_timeout" json:"read_timeout" default:"30s"`
+	// WriteTimeout 写超时
+	WriteTimeout time.Duration `yaml:"write_timeout" json:"write_timeout" default:"10s"`
+	// KeepAliveInterval TCP Keepalive 间隔
+	KeepAliveInterval time.Duration `yaml:"keepalive_interval" json:"keepalive_interval" default:"10s"`
+	// LinkStatusInterval FC=9 链路状态检查间隔
+	LinkStatusInterval time.Duration `yaml:"link_status_interval" json:"link_status_interval" default:"60s"`
+	// BackgroundScanInterval FC=11 召唤2级数据间隔
+	BackgroundScanInterval time.Duration `yaml:"background_scan_interval" json:"background_scan_interval" default:"15m"`
+	// PeriodicReadInterval FC=10 召唤1级数据间隔
+	PeriodicReadInterval time.Duration `yaml:"periodic_read_interval" json:"periodic_read_interval" default:"5m"`
+	// MaxRetry 最大重传次数
+	MaxRetry int `yaml:"max_retry" json:"max_retry" default:"3"`
+	// RetryInterval 重传间隔
+	RetryInterval time.Duration `yaml:"retry_interval" json:"retry_interval" default:"5s"`
+	// FrameTimeout 帧接收超时
+	FrameTimeout time.Duration `yaml:"frame_timeout" json:"frame_timeout" default:"5s"`
+	// StorageDir 本地文件存储目录
+	StorageDir string `yaml:"storage_dir" json:"storage_dir" default:"./data/guowang102/files"`
+	// MaxFileSize 最大文件大小，默认 20480 (512*40)
+	MaxFileSize int `yaml:"max_file_size" json:"max_file_size" default:"20480"`
+	// FileTimeout 单文件接收总超时
+	FileTimeout time.Duration `yaml:"file_timeout" json:"file_timeout" default:"30s"`
+	// LogLevel 日志级别
+	LogLevel string `yaml:"log_level" json:"log_level" default:"info"`
 }
 
 // ExporterConfig 北向导出器配置

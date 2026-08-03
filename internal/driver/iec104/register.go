@@ -36,7 +36,7 @@ type iec104PointCSV struct {
 // 此函数注册到驱动工厂，由工厂统一调用
 func NewIEC104DriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, logger *zap.Logger) (driver.Driver, error) {
 	// 解析点表文件
-	points, err := parseIEC104CSV(drvCfg.PointFile)
+	points, err := parseIEC104CSV(drvCfg.PointFile, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func NewIEC104DriverFromConfig(ctx context.Context, drvCfg config.DriverConfig, 
 }
 
 // parseIEC104CSV 解析 IEC104 CSV 点表文件
-func parseIEC104CSV(filePath string) ([]iec104PointCSV, error) {
+func parseIEC104CSV(filePath string, logger *zap.Logger) ([]iec104PointCSV, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("打开CSV文件失败: %w", err)
@@ -110,6 +110,7 @@ func parseIEC104CSV(filePath string) ([]iec104PointCSV, error) {
 
 	var points []iec104PointCSV
 	lineNum := 1
+	skipped := 0
 
 	for {
 		lineNum++
@@ -118,7 +119,15 @@ func parseIEC104CSV(filePath string) ([]iec104PointCSV, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("读取CSV第%d行失败: %w", lineNum, err)
+			if logger != nil {
+				logger.Warn("IEC104 CSV read line error, skipping",
+					zap.Int("line", lineNum),
+					zap.String("file", filePath),
+					zap.Error(err),
+				)
+			}
+			skipped++
+			continue
 		}
 
 		// 跳过空行
@@ -128,10 +137,30 @@ func parseIEC104CSV(filePath string) ([]iec104PointCSV, error) {
 
 		point, err := parseIEC104Line(record, headerMap, lineNum)
 		if err != nil {
-			return nil, err
+			if logger != nil {
+				logger.Warn("IEC104 CSV line parse error, skipping",
+					zap.Int("line", lineNum),
+					zap.String("file", filePath),
+					zap.Strings("record", record),
+					zap.Error(err),
+				)
+			}
+			skipped++
+			continue
 		}
 
 		points = append(points, point)
+	}
+
+	if len(points) == 0 && skipped > 0 {
+		return nil, fmt.Errorf("all %d data lines in CSV are invalid: %s", skipped, filePath)
+	}
+
+	if logger != nil {
+		logger.Info("IEC104点表解析完成",
+			zap.Int("points", len(points)),
+			zap.Int("skipped", skipped),
+		)
 	}
 
 	return points, nil

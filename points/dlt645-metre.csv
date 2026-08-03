@@ -1,0 +1,30 @@
+# DL/T 645-2007 Point Table File
+# Format: Name,Address,DataID,Scale,Offset,Unit,Precision,Interval,DeadbandValue,DeadbandType
+# Address: 12-digit meter number (BCD), e.g. "123456789012"
+# DataID: Data identifier (2007: 8-digit like "00010000", 1997: 4-digit like "9010")
+# DataFormat: "bcd"(default) or "float"(IEEE 754 big-endian float)
+#
+# Common Data Identifiers (DL/T 645-2007):
+# 00010000 - Current positive active total energy
+# 00020000 - Current reverse active total energy
+# 00030000 - Current positive reactive total energy
+# 00040000 - Current reverse reactive total energy
+# 02010100 - Voltage A (instantaneous)
+# 02010200 - Voltage B (instantaneous)
+# 02010300 - Voltage C (instantaneous)
+# 02020100 - Current A (instantaneous)
+# 02030000 - Active power (instantaneous)
+# 02060000 - Power factor (instantaneous)
+#
+Name,Address,DataID,Scale,Offset,Unit,Precision,Interval,DeadbandValue,DeadbandType
+正向有功总电量,000000000001,00010000,1,0,kWh,3,0,0,absolute
+反向有功总电量,000000000001,00020000,1,0,kWh,3,0,0,absolute
+A相电压,000000000001,02010100,1,0,V,2,0,0,absolute
+B相电压,000000000001,02010200,1,0,V,2,0,0,absolute
+C相电压,000000000001,02010300,1,0,V,2,0,0,absolute
+A相电流,000000000001,02020100,1,0,A,2,0,0,absolute
+B相电流,000000000001,02020200,1,0,A,2,0,0,absolute
+C相电流,000000000001,02020300,1,0,A,2,0,0,absolute
+总有功功率,000000000001,02030000,1,0,kW,4,0,0,absolute
+总功率因数,000000000001,02060000,1,0,-,3,0,0,absolute
+电网频率,000000000001,02800007,1,0,Hz,2,0,0,absolute

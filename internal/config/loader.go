@@ -148,6 +148,26 @@ func (l *Loader) validate(cfg *config.AppConfig) error {
 			// DL/T 645 驱动仅验证串口配置，其他可选
 		case "iec101", "iec102", "iec103":
 			// IEC101/102/103 驱动暂不验证，让驱动自行处理
+		case "gb26875":
+			if drv.GB26875 == nil {
+				return fmt.Errorf("drivers[%d].gb26875 配置不能为空", i)
+			}
+			if drv.GB26875.Host == "" {
+				return fmt.Errorf("drivers[%d].gb26875.host 不能为空", i)
+			}
+			if drv.GB26875.Port <= 0 || drv.GB26875.Port > 65535 {
+				return fmt.Errorf("drivers[%d].gb26875.port 无效: %d", i, drv.GB26875.Port)
+			}
+		case "guowang102":
+			if drv.GuoWang102 == nil {
+				return fmt.Errorf("drivers[%d].guowang102 配置不能为空", i)
+			}
+			if drv.GuoWang102.Host == "" {
+				return fmt.Errorf("drivers[%d].guowang102.host 不能为空", i)
+			}
+			if drv.GuoWang102.Port <= 0 || drv.GuoWang102.Port > 65535 {
+				return fmt.Errorf("drivers[%d].guowang102.port 无效: %d", i, drv.GuoWang102.Port)
+			}
 		case "iec104":
 			if drv.IEC104 == nil {
 				return fmt.Errorf("drivers[%d].iec104 配置不能为空", i)
@@ -290,9 +310,40 @@ func (l *Loader) fillDefaults(cfg *config.AppConfig) {
 				drv.DLT645.QueryIntervalPerPoint = 50 * 1000000 // 50ms
 			}
 		}
+
+		// GB26875 默认值
+		if drv.Type == "gb26875" && drv.GB26875 != nil {
+			if drv.GB26875.Host == "" {
+				drv.GB26875.Host = "0.0.0.0"
+			}
+			if drv.GB26875.Port == 0 {
+				drv.GB26875.Port = 5001
+			}
+			if drv.GB26875.MaxConnections == 0 {
+				drv.GB26875.MaxConnections = 100
+			}
+			if drv.GB26875.ReadTimeout == 0 {
+				drv.GB26875.ReadTimeout = 10 * 1000000000 // 10s
+			}
+			if drv.GB26875.WriteTimeout == 0 {
+				drv.GB26875.WriteTimeout = 5 * 1000000000 // 5s
+			}
+			if drv.GB26875.FrameTimeout == 0 {
+				drv.GB26875.FrameTimeout = 200 * 1000000 // 200ms
+			}
+			if drv.GB26875.Version == 0 {
+				drv.GB26875.Version = 1
+			}
+			if drv.GB26875.UserVersion == 0 {
+				drv.GB26875.UserVersion = 1
+			}
+			if drv.GB26875.ADUBufferSize == 0 {
+				drv.GB26875.ADUBufferSize = 5000
+			}
+		}
 	}
 
-	// MQTT 默认值
+// MQTT 默认值
 	if cfg.Exporters.MQTT != nil {
 		if cfg.Exporters.MQTT.ClientID == "" {
 			cfg.Exporters.MQTT.ClientID = "gateway"
